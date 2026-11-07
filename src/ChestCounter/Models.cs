@@ -81,6 +81,12 @@ public sealed class Config
     /// <summary>Selected profile (Epic id or name of the account the player plays on); null = most recent one.</summary>
     public string? Profile { get; set; }
     public string DemosFolder { get; set; } = "";
+
+    /// <summary>Open the tool automatically when Fortnite starts (invisible standby process started with Windows).</summary>
+    public bool StartWithFortnite { get; set; }
+
+    /// <summary>"prompt" (offer new versions), "auto" (install them) or "off" (never check GitHub).</summary>
+    public string UpdateMode { get; set; } = "prompt";
     public bool OpenReportOnStart { get; set; } = true;
     public bool ShowOverlay { get; set; } = true;
     public int? OverlayX { get; set; }
@@ -148,6 +154,7 @@ public sealed class Store
     public string OverlayPath => Path.Combine(Folder, "overlay.html");
     public string CsvPath => Path.Combine(Folder, "matches.csv");
     public string PrizeNamesPath => Path.Combine(Folder, "treasures.json");
+    public string ErrorLogPath => Path.Combine(Folder, "errors.log");
 
     /// <summary>Known treasure hunt prize ids (week 1), in the chosen language. Unknown ids are added automatically with an empty name.</summary>
     public static Dictionary<string, string> DefaultPrizeNames => L.En
@@ -235,7 +242,8 @@ public sealed class Store
 
     public Config? LoadConfig() => Load<Config>(ConfigPath);
     public void SaveConfig(Config config) => Save(ConfigPath, config);
-    public TrackerData LoadData() => Load<TrackerData>(DataPath) ?? new TrackerData();
+    /// <summary>A new history starts at the current analysis version (nothing to re-analyze).</summary>
+    public TrackerData LoadData() => Load<TrackerData>(DataPath) ?? new TrackerData { AnalyzerVersion = ReplayAnalyzer.CurrentVersion };
     public void SaveData(TrackerData data) => Save(DataPath, data);
 
     private static T? Load<T>(string path) where T : class

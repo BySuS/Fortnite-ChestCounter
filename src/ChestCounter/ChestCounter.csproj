@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- Windows app: the standby process has no window; the tool opens its own console (NativeConsole). -->
+    <OutputType>WinExe</OutputType>
     <AssemblyName>ChestCounter</AssemblyName>
     <RootNamespace>ChestCounter</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
     <!-- Single-file publish: the parser discovers its types by reflection, so no trimming. -->
     <PublishTrimmed>false</PublishTrimmed>

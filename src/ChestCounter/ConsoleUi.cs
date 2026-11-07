@@ -44,6 +44,12 @@ public static class ConsoleUi
         Console.WriteLine();
     }
 
+    /// <summary>Window title (ignored when there is no console window, e.g. output redirected).</summary>
+    public static void SetTitle(string title)
+    {
+        try { Console.Title = title; } catch { }
+    }
+
     public static void Text(string text, ConsoleColor? color = null)
     {
         if (color is { } c) Console.ForegroundColor = c;

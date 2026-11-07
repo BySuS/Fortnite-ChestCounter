@@ -208,6 +208,7 @@ public sealed class Tracker
         catch (Exception ex)
         {
             var message = (ex as AggregateException)?.InnerException?.Message ?? ex.Message;
+            ErrorLog.Write($"Unreadable replay: {file.FullName} ({file.Length} bytes, {file.LastWriteTime:yyyy-MM-dd HH:mm:ss})", ex);
             _data.ProcessedFiles[key] = "error: " + message;
             _store.SaveData(_data);
             return new Outcome(Error: $"{file.Name} : {message}");
@@ -265,6 +266,7 @@ public sealed class Tracker
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(L.T($"   Impossible de lire ce replay : {o.Error}", $"   Cannot read this replay: {o.Error}"));
             Console.ResetColor();
+            PrintErrorLogHint();
             return;
         }
         if (o.Skipped != null)
@@ -298,6 +300,14 @@ public sealed class Tracker
                 $"   Treasure(s) to name in {_store.PrizeNamesPath}: {string.Join(", ", ids)}"));
             Console.ResetColor();
         }
+    }
+
+    private void PrintErrorLogHint()
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(L.T($"   Détails dans {_store.ErrorLogPath}. Souvent dû à une mise à jour de Fortnite : signale-le sur {AppInfo.IssuesUrl}",
+            $"   Details in {_store.ErrorLogPath}. Usually caused by a Fortnite update: report it at {AppInfo.IssuesUrl}"));
+        Console.ResetColor();
     }
 
     private void PrintBatchSummary(List<Outcome> outcomes)
@@ -335,6 +345,7 @@ public sealed class Tracker
                 Console.WriteLine($"      {e}");
             }
             Console.ResetColor();
+            PrintErrorLogHint();
         }
         PrintNewPrizeIds(outcomes.Where(o => o.NewPrizeIds != null).SelectMany(o => o.NewPrizeIds!).ToList());
     }
@@ -481,12 +492,13 @@ public sealed class Tracker
 
     /// <summary>
     /// When the analysis logic changed, re-analyze the replays still on disk (records are replaced, not duplicated).
+    /// Must run before any scan. Returns true when existing matches will be re-analyzed (worth telling the player).
     /// </summary>
-    public void UpgradeIfNeeded()
+    public bool UpgradeIfNeeded()
     {
         if (_data.AnalyzerVersion >= ReplayAnalyzer.CurrentVersion)
         {
-            return;
+            return false;
         }
 
         var hadData = _data.Matches.Count > 0;
@@ -496,14 +508,7 @@ public sealed class Tracker
         }
         _data.AnalyzerVersion = ReplayAnalyzer.CurrentVersion;
         _store.SaveData(_data);
-
-        if (hadData)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine(L.T("Nouvelle version de l'analyse : les replays encore présents vont être réanalysés (sans doublon).",
-                "New analysis version: the replays still on disk will be analyzed again (no duplicates)."));
-            Console.ResetColor();
-        }
+        return hadData;
     }
 
     private void PrintMatch(MatchRecord m, bool updated)

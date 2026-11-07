@@ -25,7 +25,7 @@ Fortnite peut enregistrer un **fichier replay** de chaque partie sur ton PC. Che
 - ✅ **Lit uniquement les replays** : les fichiers `.replay` que Fortnite écrit dans `%LOCALAPPDATA%\FortniteGame\Saved\Demos`. Ils sont ouverts en lecture seule et jamais modifiés.
 - ✅ **Aucune modification du jeu** : rien n'est touché dans le dossier d'installation de Fortnite, aucun fichier n'est ajouté ni modifié.
 - ✅ **Aucun accès à la mémoire du jeu** : l'outil ne lit, n'écrit et n'injecte jamais rien dans le processus de Fortnite. Il n'interagit pas du tout avec le jeu en cours.
-- ✅ **Aucun réseau** : pas de connexion, pas d'accès à ton compte Epic, pas de télémétrie. Tout reste sur ton PC.
+- ✅ **Aucune donnée envoyée** : pas de connexion, pas d'accès à ton compte Epic, pas de télémétrie. Le seul accès réseau est la vérification d'une nouvelle version sur GitHub, désactivable dans les réglages.
 - ✅ **Léger** : tourne en priorité basse (et en « mode efficacité » sous Windows 11), dort entre les parties, et l'overlay n'est redessiné que quand un chiffre change.
 
 > [!IMPORTANT]
@@ -39,7 +39,7 @@ Comme Fortnite n'écrit la clé de déchiffrement du replay qu'à la fin de la p
 2. Active les replays dans Fortnite (voir ci-dessus).
 3. Lance `ChestCounter.exe`.
    > Windows peut afficher *« Windows a protégé votre ordinateur »*, car l'exe n'est pas signé. Clique sur *Informations complémentaires → Exécuter quand même*.
-4. Une courte installation (flèches + Entrée) te demande ta **langue** (français / anglais), vérifie ton **dossier de replays** et propose de compter les **replays déjà présents** sur ton PC.
+4. Une courte installation (flèches + Entrée) te demande ta **langue** (français / anglais), vérifie ton **dossier de replays**, propose de compter les **replays déjà présents** sur ton PC, et propose d'**ouvrir le compteur automatiquement au lancement de Fortnite**.
 
 <p align="center"><img src="docs/setup-fr.png" alt="Installation au premier lancement" width="760"></p>
 
@@ -52,7 +52,11 @@ Si tu comptes tes replays existants, une barre de progression avance dans la fen
 <p align="center"><img src="docs/console-fr.png" alt="Fenêtre principale" width="820"></p>
 
 > [!TIP]
-> Fortnite ne garde qu'un nombre limité de replays non sauvegardés et efface les plus anciens. Pour ne rater aucune partie, lance l'outil avec Windows : `Win + R`, tape `shell:startup`, puis place un raccourci vers `ChestCounter.exe` dans ce dossier.
+> Fortnite ne garde qu'un nombre limité de replays non sauvegardés et efface les plus anciens, et une partie jouée pendant que le compteur est fermé n'est pas comptée. Active **Ouvrir avec Fortnite** (proposé à l'installation, ou dans les réglages avec **C**) pour ne plus y penser.
+
+## Ouvrir avec Fortnite
+
+Avec cette option, un tout petit processus invisible démarre avec Windows et vérifie toutes les quelques secondes si Fortnite est lancé. Il ne lit rien du jeu : il regarde seulement la liste des programmes ouverts. Quand Fortnite démarre, il ouvre le compteur (réduit, le jeu garde l'écran). Quand Fortnite se ferme, le compteur compte ta dernière partie puis se ferme 30 secondes plus tard ; appuie sur une touche dans sa fenêtre pour le garder ouvert. Désactivable à tout moment dans les réglages (**C**) : le processus invisible s'arrête et est retiré du démarrage de Windows.
 
 ## L'overlay
 
@@ -74,6 +78,8 @@ Pour le voir par-dessus le jeu, mets Fortnite en **« Plein écran fenêtré »*
 | **R** | Ouvrir le rapport. |
 | **O** / **L** | Comme Ctrl+Maj+O / Ctrl+Maj+L. |
 | **P** | Changer de profil (plusieurs comptes sur ce PC). |
+| **C** | Réglages : langue, ouvrir avec Fortnite, mises à jour, overlay et rapport au démarrage, dossier des replays. |
+| **U** | Chercher une nouvelle version, et l'installer s'il y en a une. |
 | **S** / **H** / **Q** | Résumé / aide / quitter. |
 
 Les touches d'une lettre fonctionnent dans la fenêtre de l'outil. Si un autre programme utilise déjà Ctrl+Maj+O ou Ctrl+Maj+L, l'outil le signale, et les touches O et L restent utilisables.
@@ -96,6 +102,10 @@ Le jeu ne transmet que des identifiants, pas les noms : `treasures.json` fait la
 
 Les replays enregistrés sur un PC sont normalement ceux de son joueur : **pas de pseudo à taper**, l'outil compte le joueur qui a enregistré chaque replay. S'il trouve des replays de plusieurs comptes, chaque compte a son profil avec ses propres statistiques. L'outil demande alors à chaque lancement sur quel compte tu joues, et tu peux changer à tout moment avec **P**. Une partie jouée sur un autre compte est enregistrée dans le profil de ce compte, jamais perdue.
 
+## Mises à jour
+
+Au démarrage, le compteur vérifie s'il existe une nouvelle version sur GitHub. Si c'est le cas, il te prévient, et la touche **U** la télécharge, la vérifie et redémarre le compteur : ton historique et tes réglages sont conservés. Dans les réglages (**C**), tu peux choisir *proposées* (par défaut), *installées automatiquement* (seulement entre deux parties) ou *désactivées* (aucun accès réseau).
+
 ## Tes données
 
 Tout est rangé dans `%APPDATA%\ChestCounter` :
@@ -108,6 +118,7 @@ Tout est rangé dans `%APPDATA%\ChestCounter` :
 | `data.json` | Tout ton historique. **Sauvegarde-le** si tu changes de PC. |
 | `config.json` | Langue, profil, dossier des replays, position de l'overlay. |
 | `treasures.json` | Les noms des récompenses de la chasse au trésor. |
+| `errors.log` | Le détail des replays illisibles, à joindre à un rapport de bug. |
 
 Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce dossier. Si tu utilisais l'ancienne version (ChestTracker), ton dossier `%APPDATA%\ChestTracker` est repris automatiquement.
 
@@ -119,7 +130,10 @@ Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce 
 
 **Et les modes créatifs ?** Seules les parties Battle Royale sont comptées ; les autres modes sont ignorés.
 
-**« Impossible de lire ce replay ».** Une mise à jour de Fortnite peut changer le format des replays ; le parseur doit alors être mis à jour. Les parties déjà comptées sont conservées.
+**« Impossible de lire ce replay ».** Une mise à jour de Fortnite peut changer le format des replays ; le parseur doit alors être mis à jour. Les parties déjà comptées sont conservées. [Ouvre un ticket](../../issues) en joignant `errors.log` (dans `%APPDATA%\ChestCounter`).
+
+**Déjà ouvert ?** Un seul compteur peut tourner à la fois : le relancer indique simplement qu'il est déjà ouvert.
+
 
 **Une partie peut-elle être comptée deux fois ?** Non, même si tu renommes ou sauvegardes le replay.
 
