@@ -1,6 +1,6 @@
 <div align="center">
 
-**English** · [Français](README.fr.md)
+**English** · [Français](README.fr.md) · [Español](README.es.md)
 
 # Fortnite Chest Counter
 
@@ -31,7 +31,7 @@ Fortnite can record a **replay file** of every match on your PC. Chest Counter r
 - ✅ **Lightweight**: runs at low priority (and in "efficiency mode" on Windows 11), sleeps between matches, and the overlay is only redrawn when a number changes.
 
 > [!IMPORTANT]
-> **Replays must be turned on in Fortnite**: *Settings → Game → Replays → Record Replays: **On*** (and *Large Team modes* if you play them). Without replays, the tool has nothing to read.
+> **Replays must be turned on in Fortnite**: *Settings → Game → Replays → Record Replays: **On***. Without replays, the tool has nothing to read.
 
 Because Fortnite only writes the replay's decryption key when the match ends, chests are counted **a few seconds after each match**, not during it. While you play, the overlay shows **● MATCH IN PROGRESS**.
 
@@ -41,7 +41,7 @@ Because Fortnite only writes the replay's decryption key when the match ends, ch
 2. Turn on replays in Fortnite (see above).
 3. Run `ChestCounter.exe`.
    > Windows may show *"Windows protected your PC"* because the exe is not signed. Click *More info → Run anyway*.
-4. A short setup (arrow keys + Enter) asks for your **language** (English / French), checks your **replays folder**, offers to count the **replays already on your PC**, and offers to **open the counter automatically when Fortnite starts**.
+4. A short setup (arrow keys + Enter) asks for your **language** (English / French / Spanish), checks your **replays folder**, offers to count the **replays already on your PC**, and offers to **open the counter automatically when Fortnite starts**.
 
 <p align="center"><img src="docs/setup-en.png" alt="First launch setup" width="760"></p>
 
@@ -67,7 +67,7 @@ When this option is on, a tiny invisible process starts with Windows and checks 
 - **Last**: chests of your last match. **Treasures**: treasures found so far.
 - During a match, the badge **● MATCH IN PROGRESS** appears and the right counter shows "…" until the match ends.
 
-To see it over the game, set Fortnite to **Windowed Fullscreen** (*Settings → Video → Window Mode*): in exclusive fullscreen, Windows cannot draw anything on top of the game. Streaming? `overlay.html` is the same overlay with a transparent background, for an **OBS** browser source.
+To see it over the game, set Fortnite to **Windowed Fullscreen** (*Settings → Video → Window Mode*): in exclusive fullscreen, Windows cannot draw anything on top of the game. Too big, too small or too bright? Its **size** (70 to 175%) and **opacity** (100 to 30%) can be changed with **C**, and you see the change right away. Streaming? `overlay.html` is the same overlay with a transparent background, for an **OBS** browser source.
 
 ## Shortcuts
 
@@ -80,7 +80,7 @@ To see it over the game, set Fortnite to **Windowed Fullscreen** (*Settings → 
 | **R** | Open the report. |
 | **O** / **L** | Same as Ctrl+Shift+O / Ctrl+Shift+L. |
 | **P** | Switch profile (several accounts on this PC). |
-| **C** | Settings: language, open with Fortnite, updates, overlay and report at startup, replays folder. |
+| **C** | Settings: language, open with Fortnite, updates, overlay at startup, overlay size and opacity, report at startup, replays folder. |
 | **U** | Check for a new version, and install it when there is one. |
 | **S** / **H** / **Q** | Summary / help / quit. |
 
@@ -106,7 +106,7 @@ The replays saved on a PC are normally those of its player, so there is **no nam
 
 ## Updates
 
-At startup, the counter checks GitHub for a new version. When there is one, it tells you, and pressing **U** downloads it, checks it and restarts the counter: your history and settings are kept. In the settings (**C**) you can choose between *offered* (default), *installed automatically* (only between two matches) or *off* (no network access at all).
+At startup, the counter checks GitHub for a new version. When there is one, it tells you, and pressing **U** downloads it, checks it and restarts the counter: your history and settings are kept. Was the counter already open when the version came out? Press **U**: it checks GitHub again. In the settings (**C**) you can choose between *offered* (default), *installed automatically* (only between two matches) or *off* (no network access at all).
 
 ## Your data
 
@@ -118,7 +118,7 @@ Everything is stored in `%APPDATA%\ChestCounter`:
 | `overlay.html` | Transparent overlay page for OBS. |
 | `matches.csv` | One line per match, for Excel or Google Sheets. |
 | `data.json` | Your full history. **Back it up** if you change PC. |
-| `config.json` | Language, profile, replays folder, overlay position. |
+| `config.json` | Language, profile, replays folder, overlay position, size and opacity. |
 | `treasures.json` | Names of the treasure hunt prizes. |
 | `errors.log` | Details of unreadable replays, to attach to a bug report. |
 
@@ -132,6 +132,8 @@ To start over: run `ChestCounter.exe --reset-config`, or delete that folder.
 
 **Creative modes?** Only Battle Royale matches are counted; other modes are skipped.
 
+**Fortnite closed in the middle of a match.** Its replay is incomplete (Fortnite never wrote the decryption key): that match cannot be counted, and the tool marks it as an "incomplete replay".
+
 **"Cannot read this replay".** A Fortnite update can change the replay format; the parser then needs an update. Matches already counted are kept. Please [open an issue](../../issues) and attach `errors.log` (in `%APPDATA%\ChestCounter`).
 
 **Already open?** Only one counter can run at a time: launching it again just tells you it is already open.
@@ -141,7 +143,7 @@ To start over: run `ChestCounter.exe --reset-config`, or delete that folder.
 ## Command line options
 
 ```
-ChestCounter.exe --lang <fr|en>      change the language
+ChestCounter.exe --lang <fr|en|es>   change the language
 ChestCounter.exe --demos <folder>    other replays folder
 ChestCounter.exe --data <folder>     other data folder
 ChestCounter.exe --once              analyze the finished replays, then quit

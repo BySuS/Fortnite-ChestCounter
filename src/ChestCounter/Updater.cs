@@ -24,7 +24,13 @@ public static class Updater
     }
 
     /// <summary>The newer release, or null (up to date, offline, repository not reachable…).</summary>
-    public static async Task<UpdateInfo?> CheckAsync()
+    public static async Task<UpdateInfo?> CheckAsync() => (await CheckDetailedAsync()).Update;
+
+    /// <summary>
+    /// The newer release (or null), and whether GitHub answered at all: lets the U key tell
+    /// "you already have the latest version" apart from "GitHub cannot be reached".
+    /// </summary>
+    public static async Task<(UpdateInfo? Update, bool Reached)> CheckDetailedAsync()
     {
         try
         {
@@ -32,9 +38,22 @@ public static class Updater
             using var response = await http.GetAsync(ApiUrl);
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                return (null, false);
             }
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return (Parse(await response.Content.ReadAsStringAsync()), true);
+        }
+        catch
+        {
+            return (null, false);
+        }
+    }
+
+    /// <summary>The release described by the GitHub API answer, if it is newer and carries ChestCounter.exe.</summary>
+    private static UpdateInfo? Parse(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (root.TryGetProperty("draft", out var draft) && draft.GetBoolean()
                 || root.TryGetProperty("prerelease", out var pre) && pre.GetBoolean())
@@ -76,7 +95,7 @@ public static class Updater
         var exe = AppInfo.ExePath;
         if (exe == null)
         {
-            return L.T("mise à jour possible seulement depuis ChestCounter.exe", "update only possible from ChestCounter.exe");
+            return L.T("mise à jour possible seulement depuis ChestCounter.exe", "update only possible from ChestCounter.exe", "actualización posible solo desde ChestCounter.exe");
         }
         var download = exe + ".download";
         var old = exe + ".old";
@@ -92,13 +111,13 @@ public static class Updater
             var info = new FileInfo(download);
             if (info.Length != update.Size)
             {
-                throw new IOException(L.T("téléchargement incomplet", "incomplete download"));
+                throw new IOException(L.T("téléchargement incomplet", "incomplete download", "descarga incompleta"));
             }
             using (var fs = File.OpenRead(download))
             {
                 if (fs.ReadByte() != 'M' || fs.ReadByte() != 'Z')
                 {
-                    throw new IOException(L.T("le fichier téléchargé n'est pas un exe", "the downloaded file is not an exe"));
+                    throw new IOException(L.T("le fichier téléchargé n'est pas un exe", "the downloaded file is not an exe", "el archivo descargado no es un exe"));
                 }
                 if (update.Sha256 != null)
                 {
@@ -106,7 +125,7 @@ public static class Updater
                     var hash = Convert.ToHexString(SHA256.HashData(fs));
                     if (!hash.Equals(update.Sha256, StringComparison.OrdinalIgnoreCase))
                     {
-                        throw new IOException(L.T("empreinte SHA-256 incorrecte", "wrong SHA-256 checksum"));
+                        throw new IOException(L.T("empreinte SHA-256 incorrecte", "wrong SHA-256 checksum", "suma de comprobación SHA-256 incorrecta"));
                     }
                 }
             }

@@ -37,6 +37,10 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
         @"RelicExtractor|RelicFinder|LuckyLocator|FlameCeleb|SmugglerExtractionKey|ExtractionAccelerat|Treasure|PirateShop|DelilahShop",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    // Limited-time event loot ("happy hours"): a portable extractor that simply drops from chests. It looks like the
+    // treasure hunt gizmo (WID_RelicExtractor) but is not a treasure: no prize handler is granted for it.
+    private static readonly Regex EventItem = new(@"RelicExtractor_Consumable", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     static ReplayAnalyzer()
     {
         // Map every chest / container blueprint we do not know yet onto the generic container group.
@@ -89,7 +93,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -546,7 +550,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 Blueprint = search.Label,
                 Destroyed = search.Destroyed,
                 Items = items,
-                TreasureItems = items.Where(i => TreasureItem.IsMatch(i)).ToList(),
+                TreasureItems = items.Where(i => TreasureItem.IsMatch(i) && !EventItem.IsMatch(i)).ToList(),
             });
         }
 
@@ -623,23 +627,13 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
 
         // 2) Items seen in the target's hands are NOT counted on their own (they can come from a teammate,
         //    since treasures are shared by team, or from elsewhere). They are only used to name a treasure below.
-        var equippedByMe = _equips.Where(e => targetPawns.Contains(e.Pawn)).OrderBy(e => e.Time).ToList();
+        //    Event loot that only looks like a treasure is left out.
+        var equippedByMe = _equips.Where(e => targetPawns.Contains(e.Pawn) && !EventItem.IsMatch(e.Item)).OrderBy(e => e.Time).ToList();
 
-        // 3) Treasure item thrown out of a container as a pickup (not observed so far, kept just in case).
-        foreach (var chest in chests.Where(c => c.TreasureItems.Count > 0))
-        {
-            foreach (var item in chest.TreasureItems.Select(TreasureNames.Friendly).Distinct())
-            {
-                if (finds.All(f => f.Item != item))
-                {
-                    finds.Add(new TreasureFind
-                    {
-                        Item = item, RawItem = item, ObtainedAtSeconds = chest.TimeSeconds,
-                        SourceKind = chest.Kind, SourceBlueprint = chest.Blueprint, SourceIsChest = true, SourceCertain = true,
-                    });
-                }
-            }
-        }
+        // 3) An item thrown out of a container as a pickup is never a treasure: treasure hunt items go straight into
+        //    the inventory and grant a prize handler (4). The only such pickups seen are "happy hour" event extractors
+        //    (WID_RelicExtractor_Consumable), plain loot that must not be counted.
+
         // 4) Prize handlers: every treasure received grants a "GA_TreasureHandler_*" ability on the player state of
         //    the recording player (exact time, one grant per treasure). Counted only if the chest opened/destroyed at
         //    that moment is the target's own (not a teammate's: treasures are shared with the team).
@@ -672,7 +666,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
 
                 // Item identity: an item first sent at that exact moment, otherwise the only treasure item the
                 // target later had in hand (if there is exactly one kind).
-                var item = _firstExport.Where(kv => kv.Key.StartsWith("WID_") && Math.Abs(kv.Value - h) <= 1).Select(kv => kv.Key).FirstOrDefault();
+                var item = _firstExport.Where(kv => kv.Key.StartsWith("WID_") && !EventItem.IsMatch(kv.Key) && Math.Abs(kv.Value - h) <= 1).Select(kv => kv.Key).FirstOrDefault();
                 if (item == null)
                 {
                     var later = equippedByMe.Where(e => e.Time >= h && e.Time < nextHandler).Select(e => TreasureNames.Friendly(e.Item)).Where(n => !n.StartsWith("B_")).Distinct().ToList();
@@ -752,7 +746,7 @@ public static class TreasureNames
 
     /// <summary>Key prefix of a treasure whose prize id is not in the replay ("Inconnu:" before version 1.1).</summary>
     public const string UnknownPrefix = "Unknown:";
-    public const string UnknownGizmoFr = "Gizmo de trésor", UnknownGizmoEn = "Treasure gizmo";
+    public const string UnknownGizmoFr = "Gizmo de trésor", UnknownGizmoEn = "Treasure gizmo", UnknownGizmoEs = "Artilugio de tesoro";
     private const string OldUnknownPrefix = "Inconnu:";
 
     /// <summary>Display name of a prize id (from treasures.json), or of a treasure item blueprint.</summary>
@@ -778,9 +772,9 @@ public static class TreasureNames
                 }
                 // Not a golden chest prize (those carry their id): one of the treasure hunt gizmos (golden
                 // firework, portable extractor, locators, extraction accelerator), exact one not in the replay.
-                return L.T(UnknownGizmoFr, UnknownGizmoEn);
+                return L.T(UnknownGizmoFr, UnknownGizmoEn, UnknownGizmoEs);
             }
-            return L.T($"Trésor inconnu ({item[(item.IndexOf(':') + 1)..]})", $"Unknown treasure ({item[(item.IndexOf(':') + 1)..]})");
+            return L.T($"Trésor inconnu ({item[(item.IndexOf(':') + 1)..]})", $"Unknown treasure ({item[(item.IndexOf(':') + 1)..]})", $"Tesoro desconocido ({item[(item.IndexOf(':') + 1)..]})");
         }
 
 

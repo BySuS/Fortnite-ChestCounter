@@ -96,7 +96,7 @@ public static class ConsoleUi
                 }
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write("  " + (help ?? L.T("↑ ↓ pour choisir, Entrée pour valider", "↑ ↓ to choose, Enter to confirm")));
+                Console.Write("  " + (help ?? L.T("↑ ↓ pour choisir, Entrée pour valider", "↑ ↓ to choose, Enter to confirm", "↑ ↓ para elegir, Intro para confirmar")));
                 Console.ResetColor();
 
                 var key = ReadKey();

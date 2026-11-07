@@ -28,7 +28,7 @@ public static class NativeOverlay
     private static int _headerH, _bigH, _captionH, _rowH, _col1W, _col2W, _labelW;
     private static IntPtr _fontHeader, _fontCaption, _fontLabel;
     private static IntPtr _brushBorder, _brushLine;
-    private static string Header => L.T("COFFRES", "CHESTS");
+    private static string Header => L.T("COFFRES", "CHESTS", "COFRES");
     private const string CaptionTotal = "total";
     private static Action<int, int>? _onMoved;
     private static Action<bool>? _onLockChanged;
@@ -39,9 +39,25 @@ public static class NativeOverlay
     private static IntPtr _fontIcon;
     private static WndProcDelegate? _wndProc; // keep the delegate alive
     private static IntPtr _fontBig, _fontSmall, _brushBg;
-    private static float _scale = 1f;
+    private static float _scale = 1f;    // display scaling × size chosen by the player
+    private static float _dpiScale = 1f; // display scaling only
+    private static volatile int _sizePercent = 100;
+    private static volatile int _opacityPercent = 100;
 
     private const int MinWidth = 240, Pad = 16, ColGap = 36;
+
+    /// <summary>Size and opacity of the overlay (percent). Applied at once when the overlay is shown.</summary>
+    public static void SetAppearance(int sizePercent, int opacityPercent)
+    {
+        _sizePercent = OverlayAppearance.ClampSize(sizePercent);
+        _opacityPercent = OverlayAppearance.ClampOpacity(opacityPercent);
+        if (_hwnd != IntPtr.Zero)
+        {
+            PostMessageW(_hwnd, WM_APP_APPEARANCE, IntPtr.Zero, IntPtr.Zero);
+        }
+    }
+
+    private static byte Alpha => (byte)Math.Round(_opacityPercent * 255 / 100.0);
 
     public static bool IsRunning => _hwnd != IntPtr.Zero;
 
@@ -74,7 +90,7 @@ public static class NativeOverlay
             }
             catch (Exception ex)
             {
-                Console.WriteLine(L.T($"Overlay indisponible : {ex.Message}", $"Overlay unavailable: {ex.Message}"));
+                Console.WriteLine(L.T($"Overlay indisponible : {ex.Message}", $"Overlay unavailable: {ex.Message}", $"Overlay no disponible: {ex.Message}"));
                 ready.Set();
             }
         })
@@ -142,20 +158,15 @@ public static class NativeOverlay
         try { SetProcessDPIAware(); } catch { /* old Windows */ }
 
         var screenDc = GetDC(IntPtr.Zero);
-        _scale = GetDeviceCaps(screenDc, LOGPIXELSY) / 96f;
+        _dpiScale = GetDeviceCaps(screenDc, LOGPIXELSY) / 96f;
         ReleaseDC(IntPtr.Zero, screenDc);
 
         int S(int v) => (int)Math.Round(v * _scale);
 
-        _fontBig = CreateFontW(-S(38), 0, 0, 0, 800, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
-        _fontSmall = CreateFontW(-S(14), 0, 0, 0, 500, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
-        _fontHeader = CreateFontW(-S(12), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
-        _fontCaption = CreateFontW(-S(11), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
-        _fontLabel = CreateFontW(-S(13), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        CreateFonts();
         _brushBg = CreateSolidBrush(Rgb(18, 18, 22));
         _brushBorder = CreateSolidBrush(Rgb(58, 58, 66));
         _brushLine = CreateSolidBrush(Rgb(44, 44, 52));
-        _fontIcon = CreateFontW(-S(14), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe MDL2 Assets");
 
         var hInstance = GetModuleHandleW(null);
         _wndProc = WndProc;
@@ -180,7 +191,7 @@ public static class NativeOverlay
         _hwnd = CreateWindowExW(
             // Opaque (no WS_EX_LAYERED alpha): nothing for the compositor to blend every frame.
             WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-            wc.lpszClassName, L.T("Coffres", "Chests"), WS_POPUP,
+            wc.lpszClassName, L.T("Coffres", "Chests", "Cofres"), WS_POPUP,
 
             posX, posY, w, h, IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
         if (_hwnd == IntPtr.Zero)
@@ -203,6 +214,23 @@ public static class NativeOverlay
             TranslateMessage(ref msg);
             DispatchMessageW(ref msg);
         }
+    }
+
+    /// <summary>(Re)creates the fonts for the current display scaling and chosen size.</summary>
+    private static void CreateFonts()
+    {
+        foreach (var old in new[] { _fontBig, _fontSmall, _fontHeader, _fontCaption, _fontLabel, _fontIcon })
+        {
+            if (old != IntPtr.Zero) DeleteObject(old);
+        }
+        _scale = _dpiScale * _sizePercent / 100f;
+        int S(int v) => (int)Math.Round(v * _scale);
+        _fontBig = CreateFontW(-S(38), 0, 0, 0, 800, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        _fontSmall = CreateFontW(-S(14), 0, 0, 0, 500, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        _fontHeader = CreateFontW(-S(12), 0, 0, 0, 700, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        _fontCaption = CreateFontW(-S(11), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        _fontLabel = CreateFontW(-S(13), 0, 0, 0, 600, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI");
+        _fontIcon = CreateFontW(-S(14), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe MDL2 Assets");
     }
 
     private static IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -266,6 +294,13 @@ public static class NativeOverlay
                 Relayout(hwnd);
                 return IntPtr.Zero;
 
+            case WM_APP_APPEARANCE:
+                CreateFonts();
+                _stableW = 0; // the width may shrink when the overlay gets smaller
+                ApplyLock(hwnd, _locked, notify: false); // also applies the opacity
+                Relayout(hwnd);
+                return IntPtr.Zero;
+
             case WM_PAINT:
                 Paint(hwnd);
                 return IntPtr.Zero;
@@ -283,16 +318,22 @@ public static class NativeOverlay
         return DefWindowProcW(hwnd, msg, wParam, lParam);
     }
 
-    /// <summary>Locked: click-through (WS_EX_LAYERED + WS_EX_TRANSPARENT, fully opaque). Unlocked: normal window.</summary>
+    /// <summary>
+    /// Locked: click-through (WS_EX_LAYERED + WS_EX_TRANSPARENT). Unlocked: normal window. Layered also when the
+    /// player made it see-through; a fully opaque unlocked overlay stays a plain window (nothing to blend).
+    /// </summary>
     private static void ApplyLock(IntPtr hwnd, bool locked, bool notify)
     {
         _locked = locked;
+        var alpha = Alpha;
+        var layered = locked || alpha < 255;
         var ex = (long)GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        ex = locked ? ex | WS_EX_LAYERED | WS_EX_TRANSPARENT : ex & ~(long)(WS_EX_LAYERED | WS_EX_TRANSPARENT);
+        ex = layered ? ex | WS_EX_LAYERED : ex & ~(long)WS_EX_LAYERED;
+        ex = locked ? ex | WS_EX_TRANSPARENT : ex & ~(long)WS_EX_TRANSPARENT;
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (IntPtr)ex);
-        if (locked)
+        if (layered)
         {
-            SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA); // required for a layered window to be drawn
+            SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA); // required for a layered window to be drawn
         }
         SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
         InvalidateRect(hwnd, IntPtr.Zero, true);
@@ -302,9 +343,11 @@ public static class NativeOverlay
             _onLockChanged?.Invoke(locked);
             Console.WriteLine(locked
                 ? L.T($"Overlay verrouillé : la souris passe au travers. {(LockHotkeyRegistered ? "Ctrl+Maj+L" : "Touche L dans cette fenêtre")} pour le déverrouiller.",
-                      $"Overlay locked: the mouse goes through it. {(LockHotkeyRegistered ? "Ctrl+Shift+L" : "L key in this window")} to unlock it.")
+                      $"Overlay locked: the mouse goes through it. {(LockHotkeyRegistered ? "Ctrl+Shift+L" : "L key in this window")} to unlock it.",
+                      $"Overlay bloqueado: el ratón lo atraviesa. {(LockHotkeyRegistered ? "Ctrl+Mayús+L" : "Tecla L en esta ventana")} para desbloquearlo.")
                 : L.T("Overlay déverrouillé : clic gauche maintenu pour le déplacer, cadenas pour le reverrouiller.",
-                      "Overlay unlocked: hold the left mouse button to move it, click the padlock to lock it again."));
+                      "Overlay unlocked: hold the left mouse button to move it, click the padlock to lock it again.",
+                      "Overlay desbloqueado: arrástralo con el clic izquierdo; el candado lo vuelve a bloquear."));
         }
     }
 
@@ -319,8 +362,8 @@ public static class NativeOverlay
         {
             ShowWindow(hwnd, SW_HIDE);
             Console.WriteLine(HotkeyRegistered
-                ? L.T("Overlay masqué : Ctrl+Maj+O (n'importe où) pour le réafficher.", "Overlay hidden: Ctrl+Shift+O (anywhere) to show it again.")
-                : L.T("Overlay masqué : touche O dans cette fenêtre pour le réafficher.", "Overlay hidden: O key in this window to show it again."));
+                ? L.T("Overlay masqué : Ctrl+Maj+O (n'importe où) pour le réafficher.", "Overlay hidden: Ctrl+Shift+O (anywhere) to show it again.", "Overlay oculto: Ctrl+Mayús+O (desde cualquier sitio) para volver a mostrarlo.")
+                : L.T("Overlay masqué : touche O dans cette fenêtre pour le réafficher.", "Overlay hidden: O key in this window to show it again.", "Overlay oculto: tecla O en esta ventana para volver a mostrarlo."));
         }
     }
 
@@ -498,7 +541,7 @@ public static class NativeOverlay
     private const uint LWA_ALPHA = 0x2;
     private const int SW_HIDE = 0, SW_SHOWNOACTIVATE = 4;
     private const uint WM_DESTROY = 0x0002, WM_PAINT = 0x000F, WM_NCHITTEST = 0x0084, WM_NCRBUTTONUP = 0x00A5,
-        WM_TIMER = 0x0113, WM_EXITSIZEMOVE = 0x0232, WM_APP_TOGGLE = 0x8001, WM_PRINTCLIENT = 0x0318, WM_APP_RELAYOUT = 0x8002, WM_HOTKEY = 0x0312;
+        WM_TIMER = 0x0113, WM_EXITSIZEMOVE = 0x0232, WM_APP_TOGGLE = 0x8001, WM_PRINTCLIENT = 0x0318, WM_APP_RELAYOUT = 0x8002, WM_HOTKEY = 0x0312, WM_APP_APPEARANCE = 0x8004;
     private const uint MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_NOREPEAT = 0x4000, VK_O = 0x4F;
     private const int HTCAPTION = 2;
     private const int TRANSPARENT = 1, LOGPIXELSY = 90;

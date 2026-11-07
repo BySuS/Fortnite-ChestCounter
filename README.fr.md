@@ -1,6 +1,6 @@
 <div align="center">
 
-[English](README.md) · **Français**
+[English](README.md) · **Français** · [Español](README.es.md)
 
 # Compteur de coffres Fortnite
 
@@ -31,7 +31,7 @@ Fortnite peut enregistrer un **fichier replay** de chaque partie sur ton PC. Che
 - ✅ **Léger** : tourne en priorité basse (et en « mode efficacité » sous Windows 11), dort entre les parties, et l'overlay n'est redessiné que quand un chiffre change.
 
 > [!IMPORTANT]
-> **Les replays doivent être activés dans Fortnite** : *Paramètres → Jeu → Replays → Enregistrer les replays : **Activé*** (et *grandes équipes* si tu joues ces modes). Sans replays, l'outil n'a rien à lire.
+> **Les replays doivent être activés dans Fortnite** : *Paramètres → Jeu → Replays → Enregistrer les replays : **Activé***. Sans replays, l'outil n'a rien à lire.
 
 Comme Fortnite n'écrit la clé de déchiffrement du replay qu'à la fin de la partie, les coffres sont comptés **quelques secondes après chaque partie**, pas pendant. Pendant que tu joues, l'overlay affiche **● PARTIE EN COURS**.
 
@@ -41,7 +41,7 @@ Comme Fortnite n'écrit la clé de déchiffrement du replay qu'à la fin de la p
 2. Active les replays dans Fortnite (voir ci-dessus).
 3. Lance `ChestCounter.exe`.
    > Windows peut afficher *« Windows a protégé votre ordinateur »*, car l'exe n'est pas signé. Clique sur *Informations complémentaires → Exécuter quand même*.
-4. Une courte installation (flèches + Entrée) te demande ta **langue** (français / anglais), vérifie ton **dossier de replays**, propose de compter les **replays déjà présents** sur ton PC, et propose d'**ouvrir le compteur automatiquement au lancement de Fortnite**.
+4. Une courte installation (flèches + Entrée) te demande ta **langue** (français / anglais / espagnol), vérifie ton **dossier de replays**, propose de compter les **replays déjà présents** sur ton PC, et propose d'**ouvrir le compteur automatiquement au lancement de Fortnite**.
 
 <p align="center"><img src="docs/setup-fr.png" alt="Installation au premier lancement" width="760"></p>
 
@@ -67,7 +67,7 @@ Avec cette option, un tout petit processus invisible démarre avec Windows et v�
 - **Dernière** : les coffres de ta dernière partie. **Trésors** : les trésors trouvés.
 - Pendant une partie, le badge **● PARTIE EN COURS** apparaît et le compteur de droite affiche « … » jusqu'à la fin.
 
-Pour le voir par-dessus le jeu, mets Fortnite en **« Plein écran fenêtré »** (*Paramètres → Vidéo → Mode de fenêtre*) : en plein écran exclusif, Windows ne peut rien afficher par-dessus le jeu. Tu streames ? `overlay.html` est le même overlay à fond transparent, pour une source navigateur **OBS**.
+Pour le voir par-dessus le jeu, mets Fortnite en **« Plein écran fenêtré »** (*Paramètres → Vidéo → Mode de fenêtre*) : en plein écran exclusif, Windows ne peut rien afficher par-dessus le jeu. Trop grand, trop petit ou trop voyant ? Sa **taille** (70 à 175 %) et son **opacité** (100 à 30 %) se règlent avec **C**, et le changement est visible tout de suite. Tu streames ? `overlay.html` est le même overlay à fond transparent, pour une source navigateur **OBS**.
 
 ## Raccourcis
 
@@ -80,7 +80,7 @@ Pour le voir par-dessus le jeu, mets Fortnite en **« Plein écran fenêtré »*
 | **R** | Ouvrir le rapport. |
 | **O** / **L** | Comme Ctrl+Maj+O / Ctrl+Maj+L. |
 | **P** | Changer de profil (plusieurs comptes sur ce PC). |
-| **C** | Réglages : langue, ouvrir avec Fortnite, mises à jour, overlay et rapport au démarrage, dossier des replays. |
+| **C** | Réglages : langue, ouvrir avec Fortnite, mises à jour, overlay au démarrage, taille et opacité de l'overlay, rapport au démarrage, dossier des replays. |
 | **U** | Chercher une nouvelle version, et l'installer s'il y en a une. |
 | **S** / **H** / **Q** | Résumé / aide / quitter. |
 
@@ -106,7 +106,7 @@ Les replays enregistrés sur un PC sont normalement ceux de son joueur : **pas d
 
 ## Mises à jour
 
-Au démarrage, le compteur vérifie s'il existe une nouvelle version sur GitHub. Si c'est le cas, il te prévient, et la touche **U** la télécharge, la vérifie et redémarre le compteur : ton historique et tes réglages sont conservés. Dans les réglages (**C**), tu peux choisir *proposées* (par défaut), *installées automatiquement* (seulement entre deux parties) ou *désactivées* (aucun accès réseau).
+Au démarrage, le compteur vérifie s'il existe une nouvelle version sur GitHub. Si c'est le cas, il te prévient, et la touche **U** la télécharge, la vérifie et redémarre le compteur : ton historique et tes réglages sont conservés. Le compteur était déjà ouvert quand la version est sortie ? Appuie sur **U** : il revérifie sur GitHub. Dans les réglages (**C**), tu peux choisir *proposées* (par défaut), *installées automatiquement* (seulement entre deux parties) ou *désactivées* (aucun accès réseau).
 
 ## Tes données
 
@@ -118,7 +118,7 @@ Tout est rangé dans `%APPDATA%\ChestCounter` :
 | `overlay.html` | Overlay transparent pour OBS. |
 | `matches.csv` | Une ligne par partie, pour Excel ou Google Sheets. |
 | `data.json` | Tout ton historique. **Sauvegarde-le** si tu changes de PC. |
-| `config.json` | Langue, profil, dossier des replays, position de l'overlay. |
+| `config.json` | Langue, profil, dossier des replays, position, taille et opacité de l'overlay. |
 | `treasures.json` | Les noms des récompenses de la chasse au trésor. |
 | `errors.log` | Le détail des replays illisibles, à joindre à un rapport de bug. |
 
@@ -132,6 +132,8 @@ Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce 
 
 **Et les modes créatifs ?** Seules les parties Battle Royale sont comptées ; les autres modes sont ignorés.
 
+**Fortnite s'est fermé en pleine partie.** Son replay est incomplet (Fortnite n'a jamais écrit la clé de déchiffrement) : cette partie ne peut pas être comptée, et l'outil la signale comme « replay incomplet ».
+
 **« Impossible de lire ce replay ».** Une mise à jour de Fortnite peut changer le format des replays ; le parseur doit alors être mis à jour. Les parties déjà comptées sont conservées. [Ouvre un ticket](../../issues) en joignant `errors.log` (dans `%APPDATA%\ChestCounter`).
 
 **Déjà ouvert ?** Un seul compteur peut tourner à la fois : le relancer indique simplement qu'il est déjà ouvert.
@@ -141,7 +143,7 @@ Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce 
 ## Options en ligne de commande
 
 ```
-ChestCounter.exe --lang <fr|en>      change la langue
+ChestCounter.exe --lang <fr|en|es>   change la langue
 ChestCounter.exe --demos <dossier>   autre dossier de replays
 ChestCounter.exe --data <dossier>    autre dossier de données
 ChestCounter.exe --once              analyse les replays terminés puis quitte
