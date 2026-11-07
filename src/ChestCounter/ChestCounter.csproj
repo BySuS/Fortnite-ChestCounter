@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ChestCounter</AssemblyName>
+    <RootNamespace>ChestCounter</RootNamespace>
+    <Version>1.1.0</Version>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Single-file publish: the parser discovers its types by reflection, so no trimming. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Small idle footprint: workstation, non-concurrent GC (no background GC thread) and a GC that gives memory back. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\lib\FortniteReplayReader\FortniteReplayReader.csproj" />
+  </ItemGroup>
+</Project>
