@@ -4,6 +4,8 @@
 
 # Compteur de coffres Fortnite
 
+[![version](https://img.shields.io/github/v/release/LED-N/Fortnite-ChestCounter?style=flat-square&label=version&color=e8b04b)](../../releases/latest) [![téléchargements](https://img.shields.io/github/downloads/LED-N/Fortnite-ChestCounter/total?style=flat-square&label=t%C3%A9l%C3%A9chargements&color=e8b04b)](../../releases) ![Windows 10 | 11](https://img.shields.io/badge/Windows-10%20%7C%2011-3a7bd5?style=flat-square) [![licence](https://img.shields.io/github/license/LED-N/Fortnite-ChestCounter?style=flat-square&label=licence&color=555)](LICENSE)
+
 **Compte chaque coffre que tu ouvres dans Fortnite, partie après partie, avec un overlay en jeu.**
 
 <img src="docs/overlay-fr.png" alt="Overlay entre deux parties" width="300">&nbsp;&nbsp;<img src="docs/overlay-match-fr.png" alt="Overlay pendant une partie" width="300">
@@ -133,7 +135,6 @@ Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce 
 **« Impossible de lire ce replay ».** Une mise à jour de Fortnite peut changer le format des replays ; le parseur doit alors être mis à jour. Les parties déjà comptées sont conservées. [Ouvre un ticket](../../issues) en joignant `errors.log` (dans `%APPDATA%\ChestCounter`).
 
 **Déjà ouvert ?** Un seul compteur peut tourner à la fois : le relancer indique simplement qu'il est déjà ouvert.
-
 
 **Une partie peut-elle être comptée deux fois ?** Non, même si tu renommes ou sauvegardes le replay.
 
