@@ -1499,6 +1499,14 @@ public abstract class ReplayReader<T> where T : Replay, new()
                         }
                         else
                         {
+                            // ChestCounter patch: when RawProbe asks for this field, give it the raw FastArray payload
+                            // instead of the generic NetDelta decoding (wrong for ActivatableAbilities: garbage indices).
+                            if (RawProbe.Matches(classNetCache.PathName + "." + fieldCache.Name))
+                            {
+                                ProbeField(bunch.ChIndex, classNetCache.PathName, fieldCache.Name, archive);
+                                continue;
+                            }
+
                             var group = _netGuidCache.GetNetFieldExportGroup(classNetProperty.PathName);
                             if (group is null || !_netFieldParser.WillReadType(group.PathName))
                             {
