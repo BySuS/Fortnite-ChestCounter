@@ -87,6 +87,13 @@ public class NetGuidCache
             exportGroup.PathName = exportGroup.PathName.RemoveAllPathPrefixes();
         }
 
+        // ChestCounter patch: an actor whose export group arrives a moment after the actor itself was cached as
+        // "failed" for good, and every later update of it was dropped. A new group may resolve those paths: retry them.
+        if (!NetFieldExportGroupMap.ContainsKey(group))
+        {
+            _failedPaths.Clear();
+        }
+
         NetFieldExportGroupMap[group] = exportGroup;
         NetFieldExportGroupIndexToGroup[exportGroup.PathNameIndex] = group;
         _netFieldExportGroupFromIndex[exportGroup.PathNameIndex] = exportGroup;
@@ -138,6 +145,9 @@ public class NetGuidCache
     /// </summary>
     /// <param name="netguid"></param>
     /// <returns><see cref="NetFieldExportGroup"/></returns>
+    private static readonly System.Text.RegularExpressions.Regex StaticInstanceSuffix =
+        new(@"(_UAID_.*|_[0-9a-f]{16}_\d+)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
     public NetFieldExportGroup? GetNetFieldExportGroup(uint? netguid)
     {
         if (!netguid.HasValue)
@@ -196,6 +206,25 @@ public class NetGuidCache
                         _archTypeToExportGroup[netguid.Value] = NetFieldExportGroupMap[groupPath];
 
                         return NetFieldExportGroupMap[groupPath];
+                    }
+                }
+            }
+
+            // ChestCounter patch: level placed actors whose instance name is not their class name, e.g.
+            // "Tiered_Chest_Athena47_UAID_387C..._1632776713" or "Tiered_Chest_Athena5_6e02a0a859c897db_11" (class
+            // Tiered_Chest_Athena_C). Strip the UAID / instance hash part and the number suffix and accept only an exact
+            // "<name>_C" class, so a wrong layout is never used.
+            var baseName = StaticInstanceSuffix.Replace(path.RemoveAllPathPrefixes(), "").CleanPathSuffix();
+            if (baseName.Length > 0)
+            {
+                var className = baseName + "_C";
+                foreach (var groupPathKvp in NetFieldExportGroupMap)
+                {
+                    if (_cleanedPaths.TryGetValue(groupPathKvp.Value.PathNameIndex, out var groupPathFixed) && groupPathFixed == className)
+                    {
+                        NetFieldExportGroupMapPathFixed[netguid.Value] = groupPathKvp.Value;
+                        _archTypeToExportGroup[netguid.Value] = groupPathKvp.Value;
+                        return groupPathKvp.Value;
                     }
                 }
             }

@@ -56,7 +56,7 @@ public abstract class BaseContainer : INetFieldExportGroup
     public uint? SearchingPawn { get; set; }
 
     [NetFieldExport("bAlreadySearched", RepLayoutCmdType.PropertyBool)]
-    public bool bAlreadySearched { get; set; }
+    public bool? bAlreadySearched { get; set; }
 
     [NetFieldExport("BounceNormal", RepLayoutCmdType.PropertyVector)]
     public FVector BounceNormal { get; set; }

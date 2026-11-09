@@ -52,6 +52,14 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
             }
 
             var last = path[(path.LastIndexOf('/') + 1)..];
+
+            // Variants of the golden treasure chest animation (e.g. BGA_DelilahTreasureHuntAnimatedChest_Rare) carry the
+            // prize id too: map them onto TreasureHuntChest, not GenericContainer (their name contains "Chest").
+            if (last.StartsWith("BGA_DelilahTreasureHuntAnimatedChest", StringComparison.Ordinal))
+            {
+                return "/DelilahTreasureHuntGameplay/Gameplay/Actors/BGA_DelilahTreasureHuntAnimatedChest.BGA_DelilahTreasureHuntAnimatedChest_C";
+            }
+
             if (last.StartsWith("B_", StringComparison.Ordinal) && TreasureActor.IsMatch(last))
             {
                 return GenericWeapon.GroupPath;
@@ -93,7 +101,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 13;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -112,7 +120,10 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
         RawProbe.Filter = path => path.Contains("FortAbilitySystemComponent", StringComparison.Ordinal) || debugFilter?.IsMatch(path) == true;
         RawProbe.Sink = (channel, group, field, data, bits) =>
         {
-            if (group.EndsWith("AbilitySystemComponent_ClassNetCache", StringComparison.Ordinal) && _treasureHandlerGuids.Count > 0)
+            // FortAbilitySystemComponent_ClassNetCache (unnamed fields) or FortAbilitySystemComponentAthena_ClassNetCache
+            // (named "ActivatableAbilities", handed over raw by the reader instead of its generic NetDelta decoding).
+            if (group.Contains("AbilitySystemComponent", StringComparison.Ordinal) && group.EndsWith("_ClassNetCache", StringComparison.Ordinal)
+                && field is "?" or "ActivatableAbilities" && _treasureHandlerGuids.Count > 0)
             {
                 ReadAbilityGrants(channel, data, bits);
             }
@@ -371,7 +382,18 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 }
 
                 var containerKey = _channelKey.GetValueOrDefault(channelIndex, $"ch:{channelIndex}");
-                if (container.bAlreadySearched)
+                // A chest can be reset (searched -> not searched) and opened again later, by anyone: only an explicit
+                // "not searched" clears it, so the next opening is counted too.
+                if (container.bAlreadySearched == false && !container.bDestroyed && _searched.Remove(containerKey))
+                {
+                    _lastSearcher.Remove(channelIndex);
+                    if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
+                    {
+                        Console.Error.WriteLine($"DBG reset {Now,7:F1}s {_channelLabel.GetValueOrDefault(channelIndex, "?")} {containerKey}");
+                    }
+                }
+
+                if (container.bAlreadySearched == true)
                 {
                     if (_searched.Add(containerKey))
                     {
@@ -653,12 +675,18 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
         {
             var h = handlerTimes[hi];
             var nextHandler = hi + 1 < handlerTimes.Count ? handlerTimes[hi + 1] : float.MaxValue;
+            // Buried chests grant the prize when the dig completes, ~2.5s before the chest reports "searched": allow
+            // up to +4s for them only.
             var closest = _searches
-                .Where(x => x.Time >= h - 3 && x.Time <= h + 2)
+                .Where(x => x.Time >= h - 3 && (x.Time <= h + 2 || (x.Time <= h + 4 && ChestKinds.Classify(x.Label) == ChestKinds.Buried)))
                 .OrderBy(x => Math.Abs(x.Time - h))
                 .FirstOrDefault();
             var mine = closest != null && closest.SearcherPawn is uint cp && targetPawns.Contains(cp);
             var golden = finds.FirstOrDefault(f => f.FromGoldenChest && f.ObtainedAtSeconds is float g && Math.Abs(g - h) <= 5);
+            if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
+            {
+                Console.Error.WriteLine($"DBG decide {h,7:F1}s {(golden != null ? "GOLDEN" : mine ? "MINE" : closest != null ? "OTHER" : "NO-SEARCH")} closest={(closest == null ? "-" : $"{closest.Time:F1}s {closest.Label}")}");
+            }
 
             if (mine && golden == null)
             {
