@@ -128,7 +128,7 @@ Para empezar de cero: ejecuta `ChestCounter.exe --reset-config`, o borra esa car
 
 **No se cuenta nada.** Comprueba que las repeticiones están activadas en Fortnite y que la herramienta está abierta cuando termina la partida. La ventana te avisa si la carpeta de repeticiones falta o está vacía.
 
-**¿Se cuentan las cajas de munición?** No. Las cajas de munición, las cajas de comida y los cañones de botín se muestran aparte en el informe y no forman parte del total de cofres. Los cofres que **destruyes** en lugar de abrirlos sí se cuentan.
+**¿Se cuentan las cajas de munición?** No. Las cajas de munición, las cajas de comida y los cañones de botín se muestran aparte en el informe y no forman parte del total de cofres. Los cofres que **destruyes** en lugar de abrirlos sí se cuentan. Un cofre que se rellena durante la partida y que vuelves a abrir cuenta una vez más; volver a pasar cerca de un cofre ya abierto (cofre enterrado desenterrado, cofre de reliquias) no lo cuenta dos veces.
 
 **¿Modos creativos?** Solo se cuentan las partidas de Battle Royale; los demás modos se ignoran.
 

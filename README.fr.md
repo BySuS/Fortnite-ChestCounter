@@ -128,7 +128,7 @@ Pour tout recommencer : lance `ChestCounter.exe --reset-config`, ou supprime ce 
 
 **Rien n'est compté.** Vérifie que les replays sont activés dans Fortnite, et que l'outil tourne quand la partie se termine. La fenêtre te prévient si le dossier des replays est absent ou vide.
 
-**Les caisses de munitions sont-elles comptées ?** Non. Caisses de munitions, de nourriture et canons à butin sont listés à part dans le rapport et n'entrent pas dans le total. Les coffres que tu **détruis** au lieu de les ouvrir sont comptés.
+**Les caisses de munitions sont-elles comptées ?** Non. Caisses de munitions, de nourriture et canons à butin sont listés à part dans le rapport et n'entrent pas dans le total. Les coffres que tu **détruis** au lieu de les ouvrir sont comptés. Un coffre qui se remplit à nouveau pendant la partie et que tu rouvres compte une fois de plus ; repasser près d'un coffre déjà ouvert (coffre enterré creusé, coffre de reliques) ne le compte pas deux fois.
 
 **Et les modes créatifs ?** Seules les parties Battle Royale sont comptées ; les autres modes sont ignorés.
 

@@ -128,7 +128,7 @@ To start over: run `ChestCounter.exe --reset-config`, or delete that folder.
 
 **Nothing is counted.** Check that replays are turned on in Fortnite, and that the tool is running when the match ends. The window tells you if the replays folder is missing or empty.
 
-**Are ammo boxes counted?** No. Ammo boxes, food boxes and loot cannons are listed separately in the report and are not part of the chest total. Chests you **destroy** instead of opening are counted.
+**Are ammo boxes counted?** No. Ammo boxes, food boxes and loot cannons are listed separately in the report and are not part of the chest total. Chests you **destroy** instead of opening are counted. A chest that is refilled during the match and that you open again counts once more; coming back near a chest you already opened (dug-up buried chest, relic chest) does not count it twice.
 
 **Creative modes?** Only Battle Royale matches are counted; other modes are skipped.
 

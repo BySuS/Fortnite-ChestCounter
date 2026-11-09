@@ -17,7 +17,8 @@ namespace ChestCounter;
 /// </summary>
 public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
 {
-    private sealed record SearchEvent(float Time, string ActorKey, string Label, uint? SearcherPawn, bool Destroyed = false);
+    /// <summary>Stale = state received with the channel itself (searched before it became relevant to the recorder).</summary>
+    private sealed record SearchEvent(float Time, string ActorKey, string Label, uint? SearcherPawn, bool Destroyed = false, bool Stale = false);
     private sealed record TossEvent(float Time, string Item);
     private sealed record EquipEvent(float Time, string Item, uint Pawn);
     private sealed record PrizeEvent(float Time, string PrizeId, uint? Pawn, string Container);
@@ -83,6 +84,20 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly Dictionary<uint, uint> _lastSearcher = new();
     private readonly HashSet<string> _searched = new();
     private readonly List<SearchEvent> _searches = new();
+    /// <summary>When each channel was opened (a container state received right then is "stale").</summary>
+    private readonly Dictionary<uint, float> _channelOpenAt = new();
+    /// <summary>Searched state of each open container channel (false again when it is refilled).</summary>
+    private readonly Dictionary<uint, bool> _channelSearched = new();
+    /// <summary>Who made the last recorded search of each container key.</summary>
+    private readonly Dictionary<string, uint?> _lastOpener = new();
+    private static readonly string? Debug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG");
+
+    /// <summary>Level path or spawn location: the same container keeps the same key all match long.</summary>
+    private static bool StableKey(string key) => !key.StartsWith("guid:", StringComparison.Ordinal) && !key.StartsWith("ch:", StringComparison.Ordinal);
+
+    /// <summary>A chest spawned during the match (not the sand pile left by a buried chest, nor any other prop).</summary>
+    private static bool IsDynamicChest(string label) =>
+        !label.StartsWith("Prop_", StringComparison.OrdinalIgnoreCase) && ChestKinds.IsChest(ChestKinds.Classify(label));
     private readonly List<TossEvent> _tosses = new();
     private readonly List<EquipEvent> _equips = new();
     private readonly List<PrizeEvent> _prizes = new();
@@ -101,7 +116,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 14;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -349,9 +364,25 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
         var archetype = PathOf(channel?.ArchetypeId);
         var actorPath = PathOf(channel?.ActorId);
 
-        // Static (level placed) actors have no archetype; their actor path is unique per chest.
-        _channelKey[channelIndex] = !string.IsNullOrEmpty(actorPath) ? actorPath : $"guid:{channel?.ActorId}";
-        _channelLabel[channelIndex] = CleanName(!string.IsNullOrEmpty(archetype) ? archetype : actorPath);
+        var label = CleanName(!string.IsNullOrEmpty(archetype) ? archetype : actorPath);
+        if (!string.IsNullOrEmpty(actorPath))
+        {
+            // Static (level placed) actors have no archetype; their actor path is unique per chest.
+            _channelKey[channelIndex] = actorPath;
+        }
+        else if (channel?.Actor?.Location is { } loc && IsDynamicChest(label))
+        {
+            // Spawned during the match (buried chest, relic chest): a new GUID each time it becomes relevant again,
+            // but always the same spawn location. The location is its identity for the whole match.
+            _channelKey[channelIndex] = $"{label}@{loc.X:F0},{loc.Y:F0}";
+        }
+        else
+        {
+            _channelKey[channelIndex] = $"guid:{channel?.ActorId}";
+        }
+        _channelLabel[channelIndex] = label;
+        _channelOpenAt[channelIndex] = Now;
+        _channelSearched.Remove(channelIndex);
         _lastSearcher.Remove(channelIndex);
         _equipChannelsSeen.Remove(channelIndex);
         _prizeChannelsSeen.Remove(channelIndex);
@@ -382,36 +413,50 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 }
 
                 var containerKey = _channelKey.GetValueOrDefault(channelIndex, $"ch:{channelIndex}");
-                // A chest can be reset (searched -> not searched) and opened again later, by anyone: only an explicit
-                // "not searched" clears it, so the next opening is counted too.
-                if (container.bAlreadySearched == false && !container.bDestroyed && _searched.Remove(containerKey))
-                {
-                    _lastSearcher.Remove(channelIndex);
-                    if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
-                    {
-                        Console.Error.WriteLine($"DBG reset {Now,7:F1}s {_channelLabel.GetValueOrDefault(channelIndex, "?")} {containerKey}");
-                    }
-                }
+                var containerLabel = _channelLabel.GetValueOrDefault(channelIndex, "?");
+                // State received together with the channel: the container was searched before it became relevant
+                // (coming back near it), or it is a "dormant" box whose channel only opens when it is searched.
+                var stale = Now - _channelOpenAt.GetValueOrDefault(channelIndex, float.MinValue) < 0.5f;
 
-                if (container.bAlreadySearched == true)
+                if (container.bAlreadySearched == false)
                 {
-                    if (_searched.Add(containerKey))
+                    // Refilled during the match (waves every ~3 min): it can be searched, and counted, again.
+                    _channelSearched[channelIndex] = false;
+                    if (Debug == "1")
                     {
-                        _searches.Add(new SearchEvent(
-                            Now,
-                            containerKey,
-                            _channelLabel.GetValueOrDefault(channelIndex, "?"),
-                            _lastSearcher.TryGetValue(channelIndex, out var s) ? s : null));
+                        Console.Error.WriteLine($"DBG refill {Now,7:F1}s {containerLabel} {containerKey}");
                     }
                 }
-                else if (container.bDestroyed && container.SearchingPawn is uint destroyer && destroyer != 0)
+                else if (container.bAlreadySearched == true && !_channelSearched.GetValueOrDefault(channelIndex))
+                {
+                    _channelSearched[channelIndex] = true;
+                    var openedBy = _lastSearcher.TryGetValue(channelIndex, out var s) ? s : (uint?)null;
+                    // Stale + same opener as the last recorded search of that container = that old search seen again,
+                    // not a new one. A container without a stable identity (new GUID each time) is recorded once.
+                    // Anything else is recorded, even a container already searched: it was refilled and opened again.
+                    var seenAgain = stale && (StableKey(containerKey)
+                        ? _lastOpener.TryGetValue(containerKey, out var previous) && previous == openedBy
+                        : _searched.Contains(containerKey));
+                    if (!seenAgain)
+                    {
+                        _searched.Add(containerKey);
+                        _lastOpener[containerKey] = openedBy;
+                        _searches.Add(new SearchEvent(Now, containerKey, containerLabel, openedBy, Stale: stale));
+                    }
+                    else if (Debug == "1")
+                    {
+                        Console.Error.WriteLine($"DBG seen-again {Now,7:F1}s {containerLabel} {containerKey}");
+                    }
+                }
+                else if (container.bDestroyed && container.SearchingPawn is uint destroyer && destroyer != 0
+                    && (_searched.Add(containerKey) || (_channelSearched.TryGetValue(channelIndex, out var wasSearched) && !wasSearched)))
                 {
                     // Broken instead of opened (support destroyed, explosion...): the loot spills out and the
-                    // server sets SearchingPawn to whoever destroyed it. Counted once, like an opened chest.
-                    if (_searched.Add(containerKey))
-                    {
-                        _searches.Add(new SearchEvent(Now, containerKey, _channelLabel.GetValueOrDefault(channelIndex, "?"), destroyer, Destroyed: true));
-                    }
+                    // server sets SearchingPawn to whoever destroyed it. Counted like an opened chest: once, or once
+                    // more if it was refilled since its last opening.
+                    _channelSearched[channelIndex] = true;
+                    _lastOpener[containerKey] = destroyer;
+                    _searches.Add(new SearchEvent(Now, containerKey, containerLabel, destroyer, Destroyed: true, Stale: stale));
                 }
                 break;
 
@@ -544,8 +589,10 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
         var targetPawns = _pawnToPlayerState.Where(kv => targetPlayerStates.Contains(kv.Value)).Select(kv => kv.Key).ToHashSet();
 
         // --- Everything the target searched / interacted with ------------------------------------
+        // A stale search of a stable container is real (old searches seen again were dropped, and the target was right
+        // there: dormant ammo box, chest broken...). A stale search of a container without identity is not counted.
         var interactions = _searches
-            .Where(s => s.SearcherPawn is uint p && targetPawns.Contains(p))
+            .Where(s => s.SearcherPawn is uint p && targetPawns.Contains(p) && (!s.Stale || StableKey(s.ActorKey)))
             .OrderBy(s => s.Time)
             .Select(s => (s.Time, Kind: ChestKinds.Classify(s.Label), s.Label, s.ActorKey, s.Destroyed))
             .ToList();
