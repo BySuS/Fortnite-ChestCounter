@@ -379,7 +379,7 @@ public class GameState : INetFieldExportGroup
     public float PlayersLoaded { get; set; }
 
     [NetFieldExport("bIsCustomMatch", RepLayoutCmdType.PropertyBool)]
-    public bool bIsCustomMatch { get; set; }
+    public bool? bIsCustomMatch { get; set; }
 
     [NetFieldExport("bCraftingEnabled", RepLayoutCmdType.PropertyBool)]
     public bool bCraftingEnabled { get; set; }

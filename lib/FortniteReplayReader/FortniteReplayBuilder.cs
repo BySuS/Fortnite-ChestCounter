@@ -110,6 +110,8 @@ public class FortniteReplayBuilder
         GameData.MapInfo ??= state.MapInfo?.Name;
 
         GameData.IsLargeTeamGame ??= state.bIsLargeTeamGame;
+        if (state.bIsCustomMatch == true) GameData.IsCustomMatch = true;
+        GameData.IsCustomMatch ??= state.bIsCustomMatch;
         GameData.TournamentRound ??= state.EventTournamentRound;
 
         GameData.AdditionalPlaylistLevels ??= state.AdditionalPlaylistLevelsStreamed?.Select(i => i.Name);

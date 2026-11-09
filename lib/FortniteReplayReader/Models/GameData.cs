@@ -24,6 +24,7 @@ public class GameData
     public bool IsTournamentRound => TournamentRound > 0;
     public int? TournamentRound { get; set; }
     public bool? IsLargeTeamGame { get; set; }
+    public bool? IsCustomMatch { get; set; }
 
     public float? AircraftStartTime { get; set; }
     public float? SafeZonesStartTime { get; set; }

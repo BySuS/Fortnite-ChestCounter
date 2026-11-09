@@ -80,7 +80,7 @@ public static class L
         ["Coffre"] = ("Chest", "Cofre"),
         ["Coffre rare"] = ("Rare chest", "Cofre raro"),
         ["Coffre enterré"] = ("Buried chest", "Cofre enterrado"),
-        ["Coffre d'extraction / reliques"] = ("Extraction / relic chest", "Cofre de extracción / reliquias"),
+        ["Coffre d'esprit (rare)"] = ("Sprite chest (rare)", "Cofre de espíritu (raro)"),
         ["Coffre des affiches d'esprit"] = ("Sprite poster chest", "Cofre de los carteles de espíritu"),
         ["Autre coffre"] = ("Other chest", "Otro cofre"),
         ["Canon à butin"] = ("Loot cannon", "Cañón de botín"),
@@ -101,6 +101,10 @@ public static class L
     /// <summary>Display name of a chest kind or treasure item stored in French.</summary>
     public static string Name(string? stored)
     {
+        if (stored != null)
+        {
+            stored = ChestKinds.Canonical(stored); // older name of a kind
+        }
         if (string.IsNullOrEmpty(stored) || Code == "fr" || !Names.TryGetValue(stored, out var t))
         {
             return stored ?? "";

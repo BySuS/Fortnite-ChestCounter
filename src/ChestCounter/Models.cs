@@ -16,7 +16,7 @@ public sealed class ChestRecord
 
 public sealed class TreasureFind
 {
-    /// <summary>Name to display (re-resolved from treasures.json so renaming updates old matches).</summary>
+    /// <summary>Name to display (re-resolved at display time, in the current language).</summary>
     public string DisplayName => PrizeId != null ? TreasureNames.Friendly(PrizeId) : L.Name(Item);
 
     public string Item { get; set; } = "";
@@ -42,6 +42,8 @@ public sealed class TreasureFind
     public bool SourceCertain { get; set; }
     /// <summary>For estimated sources: other (non-chest) interactions between the source and the first use.</summary>
     public List<string> AlsoPossible { get; set; } = new();
+    /// <summary>Team treasure: name of the teammate whose chest gave it ("" when the teammate was out of sight).</summary>
+    public string? Teammate { get; set; }
 }
 
 public sealed class MatchRecord
@@ -71,6 +73,8 @@ public sealed class MatchRecord
     public bool IsBattleRoyale { get; set; } = true;
     public List<ChestRecord> Chests { get; set; } = new();
     public List<TreasureFind> TreasureFinds { get; set; } = new();
+    /// <summary>Treasures found by teammates (shared with the whole team). Not counted in the player's own totals.</summary>
+    public List<TreasureFind> TeamTreasureFinds { get; set; } = new();
 }
 
 public sealed class Config
@@ -89,6 +93,15 @@ public sealed class Config
     public string UpdateMode { get; set; } = "prompt";
     public bool OpenReportOnStart { get; set; } = true;
     public bool ShowOverlay { get; set; } = true;
+
+    /// <summary>Minimizing the window sends the counter to the notification area (system tray) instead of the taskbar.</summary>
+    public bool MinimizeToTray { get; set; } = true;
+
+    /// <summary>Version of the tool the player last used: what's new is shown once after an update.</summary>
+    public string? LastVersion { get; set; }
+
+    /// <summary>Look of the overlay: "hud" (figures only, like the game's HUD) or "classic" (dark card).</summary>
+    public string OverlayStyle { get; set; } = "hud";
     public int? OverlayX { get; set; }
     public int? OverlayY { get; set; }
     /// <summary>Locked overlay = click-through, cannot be moved (Ctrl+Shift+L to toggle).</summary>
@@ -159,52 +172,7 @@ public sealed class Store
     public string ReportPath => Path.Combine(Folder, "report.html");
     public string OverlayPath => Path.Combine(Folder, "overlay.html");
     public string CsvPath => Path.Combine(Folder, "matches.csv");
-    public string PrizeNamesPath => Path.Combine(Folder, "treasures.json");
     public string ErrorLogPath => Path.Combine(Folder, "errors.log");
-
-    /// <summary>Known treasure hunt prize ids (week 1), in the chosen language. Unknown ids are added automatically with an empty name.</summary>
-    public static Dictionary<string, string> DefaultPrizeNames => new()
-    {
-        ["DelilahPrize:dpid_item1"] = L.T("Gantelets d'A$AP Rocky en or massif (pioche) ?", "A$AP Rocky solid gold gauntlets (pickaxe) ?", "Guanteletes de oro macizo de A$AP Rocky (pico) ?"),
-        ["DelilahPrize:dpid_item2"] = L.T("Plunder in Paradise (écran de chargement)", "Plunder in Paradise (loading screen)", "Plunder in Paradise (pantalla de carga)"),
-        ["DelilahPrize:dpid_item3"] = L.T("Mercedes-AMG G 63 (véhicule) ?", "Mercedes-AMG G 63 (vehicle) ?", "Mercedes-AMG G 63 (vehículo) ?"),
-        ["DelilahPrize:dpid_item4"] = L.T("No Trespassing (piste musicale)", "No Trespassing (music track)", "No Trespassing (pista musical)"),
-    };
-
-    public void LoadPrizeNames()
-    {
-        var names = Load<Dictionary<string, string>>(PrizeNamesPath);
-        if (names == null)
-        {
-            names = DefaultPrizeNames;
-            Save(PrizeNamesPath, names);
-        }
-
-        TreasureNames.PrizeNames.Clear();
-        foreach (var kv in names)
-        {
-            TreasureNames.PrizeNames[kv.Key] = kv.Value;
-        }
-    }
-
-    /// <summary>Adds unknown prize ids to treasures.json so the user can name them. Returns the new ids.</summary>
-    public List<string> RegisterPrizeIds(IEnumerable<string> ids)
-    {
-        var added = ids.Where(id => !TreasureNames.PrizeNames.ContainsKey(id)).Distinct().ToList();
-        if (added.Count == 0)
-        {
-            return added;
-        }
-
-        var names = Load<Dictionary<string, string>>(PrizeNamesPath) ?? DefaultPrizeNames;
-        foreach (var id in added)
-        {
-            names[id] = "";
-            TreasureNames.PrizeNames[id] = "";
-        }
-        Save(PrizeNamesPath, names);
-        return added;
-    }
 
     public Store(string folder)
     {
@@ -213,16 +181,11 @@ public sealed class Store
         MigrateFileNames();
     }
 
-    /// <summary>Versions before 1.1 used French file names: keep the user's treasure names, drop the old generated pages.</summary>
+    /// <summary>Versions before 1.1 used French file names: drop the old generated pages.</summary>
     private void MigrateFileNames()
     {
         try
         {
-            var oldPrizes = Path.Combine(Folder, "tresors.json");
-            if (File.Exists(oldPrizes) && !File.Exists(PrizeNamesPath))
-            {
-                File.Move(oldPrizes, PrizeNamesPath);
-            }
             foreach (var generated in new[] { "rapport.html", "parties.csv" })
             {
                 var path = Path.Combine(Folder, generated);

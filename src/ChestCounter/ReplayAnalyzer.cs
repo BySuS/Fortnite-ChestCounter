@@ -116,7 +116,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 14;
+    public const int CurrentVersion = 15;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -694,6 +694,42 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
             });
         }
 
+        // Teammates (same team as the target): treasures are shared with the whole team, so the recording player is
+        // granted each treasure a teammate finds too. Those are listed apart, never in the player's own count.
+        var teammatePawns = new Dictionary<uint, string>();
+        if (target?.TeamIndex is int teamIndex)
+        {
+            foreach (var mate in players.Where(p => p.TeamIndex == teamIndex && p.Id != target.Id))
+            {
+                var mateStates = _playerStateToPlayerId.Where(kv => kv.Value == mate.Id).Select(kv => kv.Key).ToHashSet();
+                foreach (var kv in _pawnToPlayerState.Where(kv => mateStates.Contains(kv.Value)))
+                {
+                    teammatePawns[kv.Key] = mate.PlayerName ?? "";
+                }
+            }
+        }
+        var hasTeam = target?.TeamIndex is int ti && players.Any(p => p.TeamIndex == ti && p.Id != target.Id);
+        var teamFinds = new List<TreasureFind>();
+        foreach (var pz in _prizes.Where(p => p.Pawn is uint pawn && teammatePawns.ContainsKey(pawn)))
+        {
+            var label = CleanName(pz.Container);
+            var kind = string.IsNullOrEmpty(label) ? "inconnu" : ChestKinds.Classify(label);
+            teamFinds.Add(new TreasureFind
+            {
+                Item = TreasureNames.Friendly(pz.PrizeId),
+                RawItem = pz.PrizeId,
+                PrizeId = pz.PrizeId,
+                FromGoldenChest = true,
+                TimeExact = true,
+                ObtainedAtSeconds = MathF.Round(pz.Time, 1),
+                SourceKind = kind,
+                SourceBlueprint = label,
+                SourceIsChest = ChestKinds.IsChest(kind),
+                SourceCertain = true,
+                Teammate = teammatePawns[pz.Pawn!.Value],
+            });
+        }
+
         // 2) Items seen in the target's hands are NOT counted on their own (they can come from a teammate,
         //    since treasures are shared by team, or from elsewhere). They are only used to name a treasure below.
         //    Event loot that only looks like a treasure is left out.
@@ -729,10 +765,10 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 .OrderBy(x => Math.Abs(x.Time - h))
                 .FirstOrDefault();
             var mine = closest != null && closest.SearcherPawn is uint cp && targetPawns.Contains(cp);
-            var golden = finds.FirstOrDefault(f => f.FromGoldenChest && f.ObtainedAtSeconds is float g && Math.Abs(g - h) <= 5);
+            var golden = finds.Concat(teamFinds).FirstOrDefault(f => f.FromGoldenChest && f.ObtainedAtSeconds is float g && Math.Abs(g - h) <= 5);
             if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
             {
-                Console.Error.WriteLine($"DBG decide {h,7:F1}s {(golden != null ? "GOLDEN" : mine ? "MINE" : closest != null ? "OTHER" : "NO-SEARCH")} closest={(closest == null ? "-" : $"{closest.Time:F1}s {closest.Label}")}");
+                Console.Error.WriteLine($"DBG decide {h,7:F1}s {(golden != null ? "GOLDEN" : mine ? "MINE" : closest != null ? "OTHER" : "NO-SEARCH")} closest={(closest == null ? "-" : $"{closest.Time:F1}s {closest.Label}")} by={(closest?.SearcherPawn is not uint who ? "?" : targetPawns.Contains(who) ? "me" : teammatePawns.ContainsKey(who) ? "mate" : "enemy")}");
             }
 
             if (mine && golden == null)
@@ -752,7 +788,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 }
                 var itemName = item != null ? TreasureNames.Friendly(item) : null;
 
-                // No id in the replay: give it a unique key so the player can name it in treasures.json.
+                // No id in the replay: a unique key per treasure (shown as a treasure gizmo).
                 var matchStart = replay.GameData?.UtcTimeStartedMatch ?? replay.Info?.Timestamp ?? DateTime.UtcNow;
                 var localStart = DateTime.SpecifyKind(matchStart, DateTimeKind.Utc).ToLocalTime();
                 var hr = MathF.Round(h, 1);
@@ -774,8 +810,37 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                     FromPrizeHandler = true,
                 });
             }
+            else if (!mine && golden == null && hasTeam && isRecorderTarget)
+            {
+                // A teammate's treasure: the chest opened at that moment by a teammate, or one out of the recording
+                // player's sight (no chest seen at all).
+                var byMate = closest?.SearcherPawn is uint sp && teammatePawns.TryGetValue(sp, out var mateName) ? mateName : null;
+                var kind = byMate != null ? ChestKinds.Classify(closest!.Label) : "inconnu";
+                teamFinds.Add(new TreasureFind
+                {
+                    Item = TreasureNames.UnknownGizmoFr,
+                    RawItem = "GA_TreasureHandler",
+                    ObtainedAtSeconds = MathF.Round(h, 1),
+                    TimeExact = true,
+                    SourceKind = kind,
+                    SourceBlueprint = byMate != null ? closest!.Label : "",
+                    SourceIsChest = byMate == null || ChestKinds.IsChest(kind),
+                    SourceCertain = byMate != null,
+                    SourceDestroyed = byMate != null && closest!.Destroyed,
+                    FromPrizeHandler = true,
+                    Teammate = byMate ?? "",
+                });
+            }
         }
 
+        if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
+        {
+            var enemy = _searches.Count(x => x.SearcherPawn is uint w && !targetPawns.Contains(w) && !teammatePawns.ContainsKey(w) && ChestKinds.IsChest(ChestKinds.Classify(x.Label)));
+            var mates = _searches.Count(x => x.SearcherPawn is uint w && teammatePawns.ContainsKey(w) && ChestKinds.IsChest(ChestKinds.Classify(x.Label)));
+            var goldenEnemy = _prizes.Count(x => x.Pawn is uint w && !targetPawns.Contains(w) && !teammatePawns.ContainsKey(w));
+            Console.Error.WriteLine($"DBG searches enemy={enemy} mates={mates} duration={replay.Info?.LengthInMs / 1000} goldenEnemy={goldenEnemy} team={teammatePawns.Count}");
+        }
+        teamFinds.Sort((a, b) => (a.ObtainedAtSeconds ?? float.MaxValue).CompareTo(b.ObtainedAtSeconds ?? float.MaxValue));
         finds.Sort((a, b) => (a.ObtainedAtSeconds ?? float.MaxValue).CompareTo(b.ObtainedAtSeconds ?? float.MaxValue));
 
         var info = replay.Info;
@@ -808,6 +873,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
             IsBattleRoyale = !string.IsNullOrEmpty(replay.GameData?.CurrentPlaylist) || chests.Count > 0,
             Chests = chests,
             TreasureFinds = finds,
+            TeamTreasureFinds = teamFinds,
         };
     }
 }
@@ -816,42 +882,39 @@ internal static class SafeExt { }
 
 public static class TreasureNames
 {
-    /// <summary>Prize id -> display name, loaded from treasures.json (user editable).</summary>
-    public static Dictionary<string, string> PrizeNames { get; } = new(StringComparer.OrdinalIgnoreCase);
-
     /// <summary>Key prefix of a treasure whose prize id is not in the replay ("Inconnu:" before version 1.1).</summary>
     public const string UnknownPrefix = "Unknown:";
     public const string UnknownGizmoFr = "Gizmo de trésor", UnknownGizmoEn = "Treasure gizmo", UnknownGizmoEs = "Artilugio de tesoro";
     private const string OldUnknownPrefix = "Inconnu:";
 
-    /// <summary>Display name of a prize id (from treasures.json), or of a treasure item blueprint.</summary>
+    /// <summary>Prize ids whose reward is known, in the chosen language (built in: nothing to fill in by hand).</summary>
+    private static string? KnownPrize(string id) => id.ToLowerInvariant() switch
+    {
+        "delilahprize:dpid_item1" => L.T("Gantelets d'A$AP Rocky en or massif (pioche) ?", "A$AP Rocky solid gold gauntlets (pickaxe) ?", "Guanteletes de oro macizo de A$AP Rocky (pico) ?"),
+        "delilahprize:dpid_item2" => L.T("Plunder in Paradise (écran de chargement)", "Plunder in Paradise (loading screen)", "Plunder in Paradise (pantalla de carga)"),
+        "delilahprize:dpid_item3" => L.T("Mercedes-AMG G 63 (véhicule) ?", "Mercedes-AMG G 63 (vehicle) ?", "Mercedes-AMG G 63 (vehículo) ?"),
+        "delilahprize:dpid_item4" => L.T("No Trespassing (piste musicale)", "No Trespassing (music track)", "No Trespassing (pista musical)"),
+        _ => null,
+    };
+
+    /// <summary>Display name of a prize id, or of a treasure item blueprint.</summary>
     public static string Friendly(string item)
     {
         if (item.Contains(':'))
         {
-            var unknown = item.StartsWith(UnknownPrefix, StringComparison.OrdinalIgnoreCase) || item.StartsWith(OldUnknownPrefix, StringComparison.OrdinalIgnoreCase);
-            if (PrizeNames.TryGetValue(item, out var name) && !string.IsNullOrWhiteSpace(name))
+            if (KnownPrize(item) is { } known)
             {
-                return name;
+                return known;
             }
-            if (unknown)
+            if (item.StartsWith(UnknownPrefix, StringComparison.OrdinalIgnoreCase) || item.StartsWith(OldUnknownPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                // Same treasure under the other prefix (named by the player with an older version, or re-analyzed).
-                var rest = item[(item.IndexOf(':') + 1)..];
-                foreach (var prefix in new[] { UnknownPrefix, OldUnknownPrefix })
-                {
-                    if (PrizeNames.TryGetValue(prefix + rest, out var other) && !string.IsNullOrWhiteSpace(other))
-                    {
-                        return other;
-                    }
-                }
                 // Not a golden chest prize (those carry their id): one of the treasure hunt gizmos (golden
                 // firework, portable extractor, locators, extraction accelerator), exact one not in the replay.
                 return L.T(UnknownGizmoFr, UnknownGizmoEn, UnknownGizmoEs);
             }
-            return L.T($"Trésor inconnu ({item[(item.IndexOf(':') + 1)..]})", $"Unknown treasure ({item[(item.IndexOf(':') + 1)..]})", $"Tesoro desconocido ({item[(item.IndexOf(':') + 1)..]})");
+            // A prize whose reward is not known yet: its id means nothing to the player.
+            return L.T("Récompense de coffre doré", "Golden chest reward", "Recompensa de cofre dorado");
         }
-
 
         var i = item.ToLowerInvariant();
         if (i.Contains("flameceleb")) return "Feu d'artifice doré";
@@ -869,7 +932,8 @@ public static class ChestKinds
     public const string Normal = "Coffre";
     public const string Rare = "Coffre rare";
     public const string Buried = "Coffre enterré";
-    public const string Extraction = "Coffre d'extraction / reliques";
+    /// <summary>Rare sprite chest, behind the locked vault doors (needs a key): B_TieredChest_Relics_C and its variants.</summary>
+    public const string Extraction = "Coffre d'esprit (rare)";
     public const string PosterChest = "Coffre des affiches d'esprit";
     public const string Other = "Autre coffre";
 
@@ -881,7 +945,10 @@ public static class ChestKinds
 
     private static readonly HashSet<string> ChestSet = new() { Normal, Rare, Buried, Extraction, PosterChest, Other };
 
-    public static bool IsChest(string kind) => ChestSet.Contains(kind);
+    public static bool IsChest(string kind) => ChestSet.Contains(Canonical(kind));
+
+    /// <summary>Kind names stored by older versions, mapped to today's name (history is kept as it was saved).</summary>
+    public static string Canonical(string kind) => kind is "Coffre d'extraction / reliques" or "Coffre de chambre forte" ? Extraction : kind;
 
     public static string Classify(string blueprint)
     {

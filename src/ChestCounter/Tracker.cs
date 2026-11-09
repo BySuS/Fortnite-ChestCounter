@@ -83,7 +83,7 @@ public sealed class Tracker
     }
 
     /// <summary>Result of the analysis of one replay.</summary>
-    private sealed record Outcome(MatchRecord? Match = null, bool Updated = false, string? Skipped = null, string? Error = null, List<string>? NewPrizeIds = null);
+    private sealed record Outcome(MatchRecord? Match = null, bool Updated = false, string? Skipped = null, string? Error = null);
 
     /// <summary>
     /// One pass over the folder. Returns the number of new matches recorded. Several replays at once (replays left
@@ -274,8 +274,7 @@ public sealed class Tracker
             try { _store.SaveConfig(_config); } catch { /* ignore */ }
         }
 
-        var newIds = _store.RegisterPrizeIds(record.TreasureFinds.Where(f => f.PrizeId != null).Select(f => f.PrizeId!));
-        return new Outcome(record, Updated: existing != null, NewPrizeIds: newIds);
+        return new Outcome(record, Updated: existing != null);
     }
 
     private void PrintOutcome(Outcome o)
@@ -301,24 +300,9 @@ public sealed class Tracker
         {
             Console.ForegroundColor = ConsoleColor.DarkYellow;
             var name = m.PlayerName ?? L.T("compte inconnu", "unknown account", "cuenta desconocida");
-            Console.WriteLine(L.T($"   Partie jouée sur un autre compte ({name}) : elle compte pour son propre profil. Profil affiché : {current.Name}. Touche P pour changer.",
-                $"   Match played on another account ({name}): it counts for its own profile. Profile shown: {current.Name}. Press P to switch.",
-                $"   Partida jugada con otra cuenta ({name}): cuenta para su propio perfil. Perfil mostrado: {current.Name}. Pulsa P para cambiar."));
-            Console.ResetColor();
-        }
-        PrintNewPrizeIds(o.NewPrizeIds);
-    }
-
-    /// <summary>Only real prize ids are worth asking about (unknown gizmos are listed in treasures.json anyway).</summary>
-    private void PrintNewPrizeIds(List<string>? ids)
-    {
-        ids = ids?.Where(id => !id.StartsWith(TreasureNames.UnknownPrefix, StringComparison.OrdinalIgnoreCase)).ToList();
-        if (ids is { Count: > 0 })
-        {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine(L.T($"   Trésor(s) à nommer dans {_store.PrizeNamesPath} : {string.Join(", ", ids)}",
-                $"   Treasure(s) to name in {_store.PrizeNamesPath}: {string.Join(", ", ids)}",
-                $"   Tesoro(s) por nombrar en {_store.PrizeNamesPath}: {string.Join(", ", ids)}"));
+            Console.WriteLine(L.T($"   Partie jouée sur un autre compte ({name}) : elle compte pour son propre profil. Profil affiché : {current.Name} (« Changer de profil » dans le menu).",
+                $"   Match played on another account ({name}): it counts for its own profile. Profile shown: {current.Name} (\"Switch profile\" in the menu).",
+                $"   Partida jugada con otra cuenta ({name}): cuenta para su propio perfil. Perfil mostrado: {current.Name} («Cambiar de perfil» en el menú)."));
             Console.ResetColor();
         }
     }
@@ -369,7 +353,6 @@ public sealed class Tracker
             Console.ResetColor();
             PrintErrorLogHint();
         }
-        PrintNewPrizeIds(outcomes.Where(o => o.NewPrizeIds != null).SelectMany(o => o.NewPrizeIds!).ToList());
     }
 
     /// <summary>Reads the file (even while Fortnite writes it) and parses it on a lowest-priority background thread.</summary>
@@ -556,10 +539,18 @@ public sealed class Tracker
             if (!find.SourceIsChest)
             {
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine(L.T($"   ⚑ Source inhabituelle : {find.SourceLabel}{(find.SourceCertain ? "" : " (probable)")} [{find.SourceBlueprint}] → noté dans le rapport",
-                    $"   ⚑ Unusual source: {find.SourceLabel}{(find.SourceCertain ? "" : " (likely)")} [{find.SourceBlueprint}] → noted in the report",
-                    $"   ⚑ Origen inusual: {find.SourceLabel}{(find.SourceCertain ? "" : " (probable)")} [{find.SourceBlueprint}] → anotado en el informe"));
+                Console.WriteLine(L.T($"   ⚑ Obtenu autrement qu'avec un coffre ({find.SourceLabel}) : fiabilité faible, sans doute une erreur d'analyse",
+                    $"   ⚑ Obtained other than from a chest ({find.SourceLabel}): low reliability, probably an analysis mistake",
+                    $"   ⚑ Obtenido de otra forma que con un cofre ({find.SourceLabel}): fiabilidad baja, probablemente un error de análisis"));
             }
+            Console.ResetColor();
+        }
+        if (m.TeamTreasureFinds.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine(L.T($"   + {L.Count(m.TeamTreasureFinds.Count, "trésor trouvé", "trésors trouvés", "", "", "", "")} par l'équipe (estimation, voir le rapport)",
+                $"   + {L.Count(m.TeamTreasureFinds.Count, "", "", "treasure", "treasures", "", "")} found by the team (estimate, see the report)",
+                $"   + {L.Count(m.TeamTreasureFinds.Count, "", "", "", "", "tesoro encontrado", "tesoros encontrados")} por el equipo (estimación, ver el informe)"));
             Console.ResetColor();
         }
     }
