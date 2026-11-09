@@ -101,7 +101,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -382,7 +382,18 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
                 }
 
                 var containerKey = _channelKey.GetValueOrDefault(channelIndex, $"ch:{channelIndex}");
-                if (container.bAlreadySearched)
+                // A chest can be reset (searched -> not searched) and opened again later, by anyone: only an explicit
+                // "not searched" clears it, so the next opening is counted too.
+                if (container.bAlreadySearched == false && !container.bDestroyed && _searched.Remove(containerKey))
+                {
+                    _lastSearcher.Remove(channelIndex);
+                    if (Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "1")
+                    {
+                        Console.Error.WriteLine($"DBG reset {Now,7:F1}s {_channelLabel.GetValueOrDefault(channelIndex, "?")} {containerKey}");
+                    }
+                }
+
+                if (container.bAlreadySearched == true)
                 {
                     if (_searched.Add(containerKey))
                     {
