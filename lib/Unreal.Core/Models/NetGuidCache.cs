@@ -87,6 +87,13 @@ public class NetGuidCache
             exportGroup.PathName = exportGroup.PathName.RemoveAllPathPrefixes();
         }
 
+        // ChestCounter patch: an actor whose export group arrives a moment after the actor itself was cached as
+        // "failed" for good, and every later update of it was dropped. A new group may resolve those paths: retry them.
+        if (!NetFieldExportGroupMap.ContainsKey(group))
+        {
+            _failedPaths.Clear();
+        }
+
         NetFieldExportGroupMap[group] = exportGroup;
         NetFieldExportGroupIndexToGroup[exportGroup.PathNameIndex] = group;
         _netFieldExportGroupFromIndex[exportGroup.PathNameIndex] = exportGroup;
