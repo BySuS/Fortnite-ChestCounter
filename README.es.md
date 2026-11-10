@@ -20,7 +20,7 @@
 
 Chest Counter lee las repeticiones que Fortnite guarda después de cada partida y lleva la cuenta de los cofres que has abierto, además de los **tesoros de la búsqueda del tesoro** conseguidos con tus cofres. Un overlay transparente muestra tus cifras encima del juego, como el resto del HUD, y un informe detallado guarda todo tu historial.
 
-> Cuenta los cofres **que has abierto**. No muestra dónde están los cofres en el mapa.
+> Cuenta los cofres **que has abierto** y también muestra los que ha abierto tu **squad** (fila Squad del overlay y tabla Squad del informe). Los cofres del squad son solo los que registró tu repetición: un compañero lejos de ti puede faltar, así que esa cifra es un mínimo. No muestra dónde están los cofres en el mapa.
 
 ## Cómo funciona (y por qué es seguro)
 

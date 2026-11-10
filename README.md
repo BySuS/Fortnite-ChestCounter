@@ -20,7 +20,7 @@
 
 Chest Counter reads the replays Fortnite saves after each match and keeps a running count of the chests you opened, along with the **treasure hunt treasures** you got from your chests. A transparent overlay shows your figures over the game, like the rest of the HUD, and a detailed report keeps your whole history.
 
-> It counts the chests **you opened**. It does not show where chests are on the map.
+> It counts the chests **you opened**, and also shows the chests your **squad** opened (the Squad row of the overlay and the Squad table of the report). Squad chests are only those your replay recorded: a teammate far from you may be missing, so treat that figure as a minimum. It does not show where chests are on the map.
 
 ## How it works (and why it is safe)
 

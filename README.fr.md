@@ -20,7 +20,7 @@
 
 Chest Counter lit les replays que Fortnite enregistre après chaque partie et tient le compte des coffres que tu as ouverts, ainsi que des **trésors de la chasse au trésor** obtenus grâce à tes coffres. Un overlay transparent affiche tes chiffres par-dessus le jeu, comme le reste du HUD, et un rapport détaillé garde tout ton historique.
 
-> Il compte les coffres **que tu as ouverts**. Il ne montre pas où se trouvent les coffres sur la carte.
+> Il compte les coffres **que tu as ouverts**, et affiche aussi ceux que ton **équipe** a ouverts (ligne Équipe de l'overlay et tableau Squad du rapport). Les coffres de l'équipe sont seulement ceux que ton replay a enregistrés : un coéquipier éloigné peut manquer, ce chiffre est donc un minimum. Il ne montre pas où se trouvent les coffres sur la carte.
 
 ## Comment ça marche (et pourquoi c'est sans risque)
 
