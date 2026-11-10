@@ -15,7 +15,7 @@ public sealed record OverlayRow(string Label, string Value, bool Treasure = fals
 /// <param name="Current">Right counter (match in progress, or last match); null = "—".</param>
 /// <param name="CurrentLive">Right counter is the match in progress (green).</param>
 /// <param name="Badge">Header badge ("● EN DIRECT" / "● LIVE", "● PARTIE EN COURS" / "● MATCH IN PROGRESS") or null.</param>
-public sealed record OverlayView(string Total, string? Current, string CurrentCaption, bool CurrentLive, string? Badge, IReadOnlyList<OverlayRow> Rows, string Treasures = "0", string Session = "0", string? Last = null);
+public sealed record OverlayView(string Total, string? Current, string CurrentCaption, bool CurrentLive, string? Badge, IReadOnlyList<OverlayRow> Rows, string Treasures = "0", string Session = "0", string? Last = null, string? Squad = null);
 
 [SupportedOSPlatform("windows")]
 public static class NativeOverlay
@@ -639,9 +639,10 @@ public static class NativeOverlay
                 Sc(14) + TextWidth(hdc, _fontHudSmall, state.Label + Sep + state.Value, out _hudSmallH),
                 TextWidth(hdc, _fontHudSmall, sessionLabel + Sep + v.Session, out _),
                 Sc(22) + TextWidth(hdc, _fontHudSmall, v.Treasures, out _),
+                v.Squad != null ? TextWidth(hdc, _fontHudSmall, L.T("Équipe", "Squad", "Squad") + Sep + v.Squad, out _) : 0,
             }.Max();
             w = lockW + pad + Math.Max(Sc(26) + Sc(8) + bigW, rowsW) + pad + Sc(14);
-            h = pad + _hudBigH + 3 * (_hudSmallH + Sc(2)) + pad;
+            h = pad + _hudBigH + (v.Squad != null ? 4 : 3) * (_hudSmallH + Sc(2)) + pad;
             w = Math.Max(_stableW, w);
             _stableW = w;
             _lockRect = new RECT { Left = Sc(2), Top = 0, Right = lockW, Bottom = h };
@@ -823,6 +824,11 @@ public static class NativeOverlay
         y += rowH + Sc(2);
         LabelValue(hdc, L.T("Session", "Session", "Sesión"), v.Session, left, right, y, rowH, white);
         y += rowH + Sc(2);
+        if (v.Squad != null)
+        {
+            LabelValue(hdc, L.T("Équipe", "Squad", "Squad"), v.Squad, left, right, y, rowH, white);
+            y += rowH + Sc(2);
+        }
         var tw = TextWidth(hdc, _fontHudSmall, v.Treasures, out _);
         Outlined(hdc, _fontHudSmall, Rgb(214, 190, 255), v.Treasures, left, y, right, y + rowH, DT_RIGHT, thin: true);
         Star(hdc, right - tw - Sc(12), y + rowH / 2, Sc(8), Rgb(196, 155, 255), ink);

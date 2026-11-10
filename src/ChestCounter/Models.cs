@@ -75,6 +75,15 @@ public sealed class MatchRecord
     public List<TreasureFind> TreasureFinds { get; set; } = new();
     /// <summary>Treasures found by teammates (shared with the whole team). Not counted in the player's own totals.</summary>
     public List<TreasureFind> TeamTreasureFinds { get; set; } = new();
+
+    /// <summary>
+    /// Chests opened or destroyed by each teammate (key = teammate name, "?" when unknown), as far as the replay shows them.
+    /// A teammate far from the recording player may be missing, so this is a lower bound. Not part of <see cref="ChestsOpened"/>.
+    /// </summary>
+    public Dictionary<string, int> TeamChests { get; set; } = new();
+
+    [JsonIgnore]
+    public int TeamChestsOpened => TeamChests.Values.Sum();
 }
 
 public sealed class Config

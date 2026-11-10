@@ -29,6 +29,10 @@ public static class OverlayModel
         var liveTreasures = live?.TreasureFinds.Count ?? 0;
 
         var total = d.Matches.Sum(m => m.ChestsOpened) + liveChests;
+
+        // Squad = your teammates only, as far as the replays show them. Hidden until a teammate's chest has been seen.
+        var teamTotal = d.Matches.Sum(m => m.TeamChestsOpened) + (live?.TeamChestsOpened ?? 0);
+        string? squad = teamTotal > 0 ? L.N(teamTotal) : null;
         var session = d.Matches.Where(ReportWriter.IsThisSession).ToList();
         var rows = new List<OverlayRow>();
 
@@ -48,18 +52,23 @@ public static class OverlayModel
             rows.Add(new OverlayRow(L.T("Dernière", "Last", "Última"), L.Count(last.ChestsOpened, "coffre", "chest", "cofre")));
         }
 
+        if (squad != null)
+        {
+            rows.Add(new OverlayRow(L.T("Équipe", "Squad", "Squad"), L.Count(teamTotal, "coffre", "chest", "cofre")));
+        }
+
         var treasures = d.Matches.Sum(m => m.TreasureFinds.Count) + liveTreasures;
         rows.Add(new OverlayRow(L.T("Trésors", "Treasures", "Tesoros"), $"★ {L.N(treasures)}", Treasure: true));
 
         // Right counter: the match in progress when readable, "…" while it cannot be read yet, else the last match.
         if (live != null)
         {
-            return new OverlayView(L.N(total), L.N(live.ChestsOpened), L.T("partie en cours", "current match", "partida actual"), true, L.T("● EN DIRECT", "● LIVE", "● EN DIRECTO"), rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null);
+            return new OverlayView(L.N(total), L.N(live.ChestsOpened), L.T("partie en cours", "current match", "partida actual"), true, L.T("● EN DIRECT", "● LIVE", "● EN DIRECTO"), rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null, squad);
         }
         if (inProgress)
         {
-            return new OverlayView(L.N(total), "…", L.T("en cours", "in progress", "en curso"), true, L.T("● PARTIE EN COURS", "● MATCH IN PROGRESS", "● PARTIDA EN CURSO"), rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null);
+            return new OverlayView(L.N(total), "…", L.T("en cours", "in progress", "en curso"), true, L.T("● PARTIE EN COURS", "● MATCH IN PROGRESS", "● PARTIDA EN CURSO"), rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null, squad);
         }
-        return new OverlayView(L.N(total), last != null ? L.N(last.ChestsOpened) : null, LastMatchCaption, false, null, rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null);
+        return new OverlayView(L.N(total), last != null ? L.N(last.ChestsOpened) : null, LastMatchCaption, false, null, rows, L.N(treasures), L.N(session.Sum(m => m.ChestsOpened) + liveChests), last != null ? L.N(last.ChestsOpened) : null, squad);
     }
 }

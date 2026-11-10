@@ -274,6 +274,26 @@ public static class ReportWriter
             </section>
             """);
 
+        // Squad: chests opened by teammates, as far as the replays show them (never in the player's own totals above).
+        var teamByMate = matches.SelectMany(m => m.TeamChests)
+            .GroupBy(kv => kv.Key)
+            .Select(g => (Name: g.Key, Count: g.Sum(kv => kv.Value)))
+            .OrderByDescending(t => t.Count)
+            .ToList();
+        var teamTotalChests = teamByMate.Sum(t => t.Count);
+        if (teamTotalChests > 0)
+        {
+            var squadMax = Math.Max(1, teamByMate.Max(t => t.Count));
+            int Pct(int n) => Math.Max(2, (int)Math.Round(100.0 * n / squadMax));
+            sb.Append($"<section><h2 class=\"pirate\">Squad</h2><div class=\"card\"><table>");
+            foreach (var mate in teamByMate)
+            {
+                sb.Append($"<tr><td>{TeamIcon}{H(mate.Name == "?" ? L.T("un coéquipier", "a teammate", "un compañero") : mate.Name)}</td><td style=\"width:150px\"><span class=\"meter\"><i style=\"width:{Pct(mate.Count)}%;background:#1f7f7a\"></i></span></td><td class=\"n num big\">{mate.Count.ToString("N0", Fr)}</td></tr>");
+            }
+            sb.Append($"<tr><td><b>{L.T("Total coéquipiers", "Teammates total", "Total compañeros")}</b></td><td></td><td class=\"n num big\">{teamTotalChests.ToString("N0", Fr)}</td></tr></table>");
+            sb.Append($"<div class=\"items\" style=\"padding:10px 0 8px\">{L.T("Seulement ce que ton replay a enregistré : un coéquipier loin de toi peut manquer, ce total est donc un minimum.", "Only what your replay recorded: a teammate far from you may be missing, so this is a minimum.", "Solo lo que registró tu repetición: un compañero lejos de ti puede faltar, así que es un mínimo.")}</div></div></section>");
+        }
+
         // Last 30 days, one bar per day (the best day stands out).
         var today = DateTime.Now.Date;
         var days = Enumerable.Range(0, 30).Select(i => today.AddDays(i - 29)).ToList();
@@ -397,15 +417,15 @@ public static class ReportWriter
             var treasure = string.Join("<br>", m.TreasureFinds.Select(f => $"<span class=\"{(f.FromGoldenChest ? "gold" : "star")}\">{(f.FromGoldenChest ? "★★" : "★")} {H(f.DisplayName)}</span>"))
                 + string.Concat(m.TeamTreasureFinds.Select((f, i) => $"<span class=\"team\">{(i == 0 && m.TreasureFinds.Count == 0 ? "" : "<br>")}{TeamIcon} ★ {H(f.DisplayName)}</span>"));
             var win = m.Placement == 1;
-            sb.Append($"<tr><td class=\"nw num items\">{L.DateTimeShort(When(m))}</td><td>{H(Pretty.Playlist(m.Playlist))}</td><td class=\"nw num\"{(win ? " style=\"color:#b9821c;font-weight:700\"" : "")}>{H(Pretty.Placement(m))}</td><td class=\"n num big\">{m.ChestsOpened}</td><td class=\"items\">{treasure}</td></tr>");
+            sb.Append($"<tr><td class=\"nw num items\">{L.DateTimeShort(When(m))}</td><td>{H(Pretty.Playlist(m.Playlist))}</td><td class=\"nw num\"{(win ? " style=\"color:#b9821c;font-weight:700\"" : "")}>{H(Pretty.Placement(m))}</td><td class=\"n num big\">{m.ChestsOpened}{(m.TeamChestsOpened > 0 ? $"<div style=\"font-size:12px;font-weight:400;color:#6b5a44\">+{m.TeamChestsOpened} squad</div>" : "")}</td><td class=\"items\">{treasure}</td></tr>");
         }
         sb.Append("</table></div></section>");
 
         var script = """<script>(function(){var k='chestcounter-showteam',b=document.getElementById('showteam');var on=false;try{on=localStorage.getItem(k)==='1'}catch(e){}function set(v){document.body.classList.toggle('showteam',v);if(b)b.checked=v}set(on);if(b)b.addEventListener('change',function(){set(b.checked);try{localStorage.setItem(k,b.checked?'1':'0')}catch(e){}})})();</script>""";
         sb.Append(L.T(
-            "<footer>Compte les coffres que tu as ouverts ou détruits toi-même, d'après tes replays (« rediffusions » dans Fortnite), analysés après chaque partie. Les caisses de munitions et de nourriture ne sont pas comptées. ★★ = coffre doré de la chasse au trésor, détecté de façon certaine. ★ = trésor reçu grâce à un de tes coffres (moment exact), nommé quand l'objet est identifiable. L'icône équipe marque un trésor trouvé par un coéquipier (estimation : déduit des trésors que tu reçois sans avoir ouvert de coffre, car la chasse au trésor les partage avec toute l'équipe) ; il n'entre pas dans tes totaux.</footer>",
-            "<footer>Counts the chests you opened or destroyed yourself, from your replays, analyzed after each match. Ammo boxes and food boxes are not counted. ★★ = golden treasure hunt chest, detected for sure. ★ = treasure received from one of your own chests (exact moment), named when the item can be identified. The team icon marks a treasure found by a teammate (estimate: deduced from the treasures you receive without opening a chest, as the treasure hunt shares them with the whole team); it is not in your totals.</footer>",
-            "<footer>Cuenta los cofres que has abierto o destruido tú mismo, a partir de tus repeticiones, analizadas después de cada partida. Las cajas de munición y de comida no se cuentan. ★★ = cofre dorado de la búsqueda del tesoro, detectado con seguridad. ★ = tesoro recibido de uno de tus cofres (momento exacto), con nombre cuando el objeto se puede identificar. El icono de equipo marca un tesoro encontrado por un compañero (estimación: deducido de los tesoros que recibes sin abrir un cofre, ya que la búsqueda del tesoro los comparte con todo el equipo); no cuenta en tus totales.</footer>"));
+            "<footer>Compte les coffres que tu as ouverts ou détruits toi-même, d'après tes replays (« rediffusions » dans Fortnite), analysés après chaque partie. Les caisses de munitions et de nourriture ne sont pas comptées. ★★ = coffre doré de la chasse au trésor, détecté de façon certaine. ★ = trésor reçu grâce à un de tes coffres (moment exact), nommé quand l'objet est identifiable. L'icône équipe marque un trésor trouvé par un coéquipier (estimation : déduit des trésors que tu reçois sans avoir ouvert de coffre, car la chasse au trésor les partage avec toute l'équipe) ; il n'entre pas dans tes totaux. Les coffres de l'équipe (tableau Squad, « +N squad » sous chaque partie) sont ceux que tes coéquipiers ont ouverts ou détruits et que ton replay a enregistrés : un coéquipier éloigné peut manquer, c'est donc un minimum ; ils n'entrent pas non plus dans tes totaux.</footer>",
+            "<footer>Counts the chests you opened or destroyed yourself, from your replays, analyzed after each match. Ammo boxes and food boxes are not counted. ★★ = golden treasure hunt chest, detected for sure. ★ = treasure received from one of your own chests (exact moment), named when the item can be identified. The team icon marks a treasure found by a teammate (estimate: deduced from the treasures you receive without opening a chest, as the treasure hunt shares them with the whole team); it is not in your totals. Squad chests (the Squad table, the "+N squad" under each match) are those your teammates opened or destroyed and that your replay recorded: a teammate far from you may be missing, so treat them as a minimum; they are not in your own totals either.</footer>",
+            "<footer>Cuenta los cofres que has abierto o destruido tú mismo, a partir de tus repeticiones, analizadas después de cada partida. Las cajas de munición y de comida no se cuentan. ★★ = cofre dorado de la búsqueda del tesoro, detectado con seguridad. ★ = tesoro recibido de uno de tus cofres (momento exacto), con nombre cuando el objeto se puede identificar. El icono de equipo marca un tesoro encontrado por un compañero (estimación: deducido de los tesoros que recibes sin abrir un cofre, ya que la búsqueda del tesoro los comparte con todo el equipo); no cuenta en tus totales. Los cofres del squad (tabla Squad, «+N squad» bajo cada partida) son los que tus compañeros abrieron o destruyeron y que tu repetición registró: un compañero lejos de ti puede faltar, así que son un mínimo; tampoco entran en tus totales.</footer>"));
         sb.Append(script).Append("</main></body></html>");
         return sb.ToString();
     }
@@ -486,7 +506,7 @@ public static class ReportWriter
     public static string Csv(TrackerData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine(L.T("date;mode;joueur;place;joueurs;coffres;caisses_munitions;tresors;fichier", "date;mode;player;placement;players;chests;ammo_boxes;treasures;file", "fecha;modo;jugador;puesto;jugadores;cofres;cajas_municion;tesoros;archivo"));
+        sb.AppendLine(L.T("date;mode;joueur;place;joueurs;coffres;caisses_munitions;tresors;fichier;coffres_equipe", "date;mode;player;placement;players;chests;ammo_boxes;treasures;file;squad_chests", "fecha;modo;jugador;puesto;jugadores;cofres;cajas_municion;tesoros;archivo;cofres_squad"));
 
         foreach (var m in data.Matches.OrderBy(When))
         {
@@ -494,7 +514,7 @@ public static class ReportWriter
             sb.AppendLine(string.Join(";",
                 When(m).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
                 Pretty.Playlist(m.Playlist), m.PlayerName, m.Placement, m.TotalPlayers,
-                m.ChestsOpened, m.AmmoBoxesOpened, t, m.ReplayFile));
+                m.ChestsOpened, m.AmmoBoxesOpened, t, m.ReplayFile, m.TeamChestsOpened));
         }
         return sb.ToString();
     }

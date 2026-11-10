@@ -116,7 +116,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
     private readonly List<GrantEvent> _grants = new();
 
     /// <summary>Bump when the analysis changes so that existing replays are re-analyzed.</summary>
-    public const int CurrentVersion = 15;
+    public const int CurrentVersion = 16;
 
     private static readonly bool ProbeDebug = Environment.GetEnvironmentVariable("CHESTCOUNTER_DEBUG") == "4";
 
@@ -709,6 +709,15 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
             }
         }
         var hasTeam = target?.TeamIndex is int ti && players.Any(p => p.TeamIndex == ti && p.Id != target.Id);
+
+        // Chests opened or destroyed by teammates: same rules as the player's own ("interactions" above), grouped by
+        // teammate. Only what the recording player's replay contains: a teammate far away may be missing (lower bound).
+        var teamChests = _searches
+            .Where(x => x.SearcherPawn is uint w && teammatePawns.ContainsKey(w)
+                && (!x.Stale || StableKey(x.ActorKey))
+                && ChestKinds.IsChest(ChestKinds.Classify(x.Label)))
+            .GroupBy(x => teammatePawns[x.SearcherPawn!.Value] is { Length: > 0 } mateLabel ? mateLabel : "?")
+            .ToDictionary(g => g.Key, g => g.Count());
         var teamFinds = new List<TreasureFind>();
         foreach (var pz in _prizes.Where(p => p.Pawn is uint pawn && teammatePawns.ContainsKey(pawn)))
         {
@@ -874,6 +883,7 @@ public sealed class ReplayAnalyzer : FortniteReplayReader.ReplayReader
             Chests = chests,
             TreasureFinds = finds,
             TeamTreasureFinds = teamFinds,
+            TeamChests = teamChests,
         };
     }
 }

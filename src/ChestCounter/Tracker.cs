@@ -545,6 +545,15 @@ public sealed class Tracker
             }
             Console.ResetColor();
         }
+        if (m.TeamChestsOpened > 0)
+        {
+            var mates = string.Join(", ", m.TeamChests.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}"));
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine(L.T($"   + Équipe : {L.Count(m.TeamChestsOpened, "coffre", "chest", "cofre")} ({mates})",
+                $"   + Squad: {L.Count(m.TeamChestsOpened, "coffre", "chest", "cofre")} ({mates})",
+                $"   + Squad: {L.Count(m.TeamChestsOpened, "coffre", "chest", "cofre")} ({mates})"));
+            Console.ResetColor();
+        }
         if (m.TeamTreasureFinds.Count > 0)
         {
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
